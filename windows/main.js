@@ -26,6 +26,73 @@ const MIN_TS_SIZE = 25 * 1024 * 1024; // تجاهل مقاطع HLS الصغير�
 
 let win = null;
 
+/* ================= الاستشفاء من سقوط العمليات (إصلاح الشاشة السودة) =================
+ * السبب الجذري للمشكلة: عملية الـ renderer (الرسم) بتموت بصمت → النافذة تفضل موجودة
+ * بعنوان "Streamo Link" بس مفيش محتوى → المستخدم يشوف شاشة سودة متجمدة.
+ * الحل: نراقب render-process-gone لكل webContents + child-process-gone (GPU/Utility)
+ * ونسجّل السبب، ونعمل reload تلقائي للنافذة، ولو اتكرر أكتر من 3 مرات في 5 دقايق
+ * نعمل relaunch للتطبيق (وبالـ --disable-gpu لو الـ GPU هو اللي بيقع).
+ */
+let reloadCount = 0;
+let reloadWindowStart = 0;
+let gpuCrashCount = 0;
+let gpuCrashWindowStart = 0;
+
+function scheduleWindowRecovery(why) {
+  const now = Date.now();
+  if (now - reloadWindowStart > 5 * 60 * 1000) { reloadWindowStart = now; reloadCount = 0; }
+  reloadCount += 1;
+  if (reloadCount > 3) {
+    console.error('[recovery] repeated renderer crashes — relaunching app');
+    app.relaunch();
+    app.exit(0);
+    return;
+  }
+  if (win && !win.isDestroyed()) {
+    console.log('[recovery] reloading window after', why);
+    try { win.reload(); } catch (e) {
+      console.error('[recovery] win.reload failed, relaunching app:', e && e.message);
+      app.relaunch();
+      app.exit(0);
+    }
+  } else {
+    app.relaunch();
+    app.exit(0);
+  }
+}
+
+function noteGpuCrash() {
+  const now = Date.now();
+  if (now - gpuCrashWindowStart > 5 * 60 * 1000) { gpuCrashWindowStart = now; gpuCrashCount = 0; }
+  gpuCrashCount += 1;
+  if (gpuCrashCount >= 3 && !process.argv.includes('--disable-gpu')) {
+    console.error('[recovery] repeated GPU crashes — relaunching with --disable-gpu');
+    app.relaunch({ args: process.argv.slice(1).concat(['--disable-gpu']) });
+    app.exit(0);
+  }
+}
+
+function watchContents(contents, label) {
+  try {
+    if (!contents) return;
+    contents.on('render-process-gone', (event, details) => {
+      const reason = (details && details.reason) || 'unknown';
+      const exitCode = details && details.exitCode;
+      console.error('[recovery] render-process-gone (' + label + ') reason=' + reason + ' exitCode=' + exitCode);
+      if (win && !win.isDestroyed() && contents.id === win.webContents.id) {
+        scheduleWindowRecovery('render-process-gone(' + reason + ')');
+        return;
+      }
+      // webview guest مات → بلّغ الواجهة إن تاب معينة تحتاج reload
+      try { win && !win.isDestroyed() && win.webContents.send('streamo:guest-gone', { wcId: contents.id, reason: String(reason) }); } catch (e) {}
+    });
+    contents.on('unresponsive', () => console.error('[recovery] unresponsive (' + label + ')'));
+    contents.on('responsive', () => console.log('[recovery] responsive again (' + label + ')'));
+  } catch (e) {
+    console.error('[recovery] watchContents failed:', e && e.message);
+  }
+}
+
 /* ================= الدرع (نواة) ================= */
 
 /** بروتوكول stub محلي: يرد 200 بجسم فاضي — الموقع لا يعرف أن الإعلان تم حبسه */
@@ -217,8 +284,13 @@ app.whenReady().then(() => {
   }
   createMainWindow();
 
+  // راقب النافذة الرئيسية — أي سقوط لـ renderer هيحصل reloads تلقائي بدل الشاشة السودة
+  try { if (win && !win.isDestroyed()) watchContents(win.webContents, 'main-window'); } catch (e) {}
+
   // حارس النوافذ الجديدة (Electron ≥12): أي window.open / target=_blank من أي WebContents → الواجهة تقرر
   app.on('web-contents-created', (event, contents) => {
+    // راقب كل guest/webview — لو Tab مات بصمت الحالة تتسجل والواجهة تتبلغ
+    try { watchContents(contents, 'guest:' + (contents.getType ? contents.getType() : 'unknown')); } catch (e) {}
     try {
       if (!contents) return;
       const w = win && !win.isDestroyed() ? win : null;
@@ -239,6 +311,15 @@ app.whenReady().then(() => {
     } catch (e) {
       console.error('window-open handler failed:', e);
     }
+  });
+
+  // مراقبة العمليات الابنة — GPU أو Utility لو ماتوا باستمرار نعيد الإطلاق بأمان
+  app.on('child-process-gone', (event, details) => {
+    try {
+      console.error('[recovery] child-process-gone type=' + (details && details.type) +
+        ' reason=' + (details && details.reason) + ' exitCode=' + (details && details.exitCode));
+      if (details && details.type === 'GPU') noteGpuCrash();
+    } catch (e) {}
   });
 
   // اختبار الرابط من الـ renderer — رد عبر Promise

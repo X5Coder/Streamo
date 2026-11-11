@@ -907,6 +907,28 @@
     });
   }
 
+  /* A guest tab process died (crash) — recreate the tab at its current URL بدل ما يفضل ميت */
+  if (window.streamoBridge.onGuestGone) {
+    window.streamoBridge.onGuestGone(function (payload) {
+      try {
+        var wcId = payload && payload.wcId;
+        if (wcId == null) return;
+        var tab = null;
+        for (var i = 0; i < tabs.length; i++) {
+          if (tabs[i].webContentsId === wcId) { tab = tabs[i]; break; }
+        }
+        if (!tab) return;
+        var url = tab.url || 'https://www.google.com/';
+        var reason = (payload && payload.reason) || 'crash';
+        console.log('[tab-gone] tab crashed reason=' + reason + ' — recreating at', url);
+        toast('A tab crashed - reloading it');
+        var nt = createTab(url);   // تصبح آخر تاب ونشطة
+        try { destroyTab(tab); } catch (e) {}
+        activateTab(nt.id);
+      } catch (e) { console.error('[tab-gone] handler failed', e); }
+    });
+  }
+
   /* Rescue: swallowed-click intent (same-domain) -> new tab */
   if (window.streamoBridge.onNavIntent) {
     window.streamoBridge.onNavIntent(function (payload) {

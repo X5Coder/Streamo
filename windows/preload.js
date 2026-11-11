@@ -74,5 +74,11 @@ contextBridge.exposeInMainWorld('streamoBridge', {
     ipcRenderer.on('streamo:nav-intent', (event, payload) => {
       try { callback && callback(payload); } catch (e) { console.error('nav-intent callback', e); }
     });
+  },
+  /** Fired when a guest <webview> renderer dies — the UI should warn/reload the tab */
+  onGuestGone: (callback) => {
+    ipcRenderer.on('streamo:guest-gone', (event, payload) => {
+      try { callback && callback(payload); } catch (e) { console.error('guest-gone callback', e); }
+    });
   }
 });
