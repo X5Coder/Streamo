@@ -529,7 +529,7 @@
     },
     onOpenGoogle: function (url) { try { window.streamoBridge.openExternal(url); } catch (e) {} closePanel(); },
     onOpen: function (url, kind) { try { window.streamoBridge.openExternal(url); } catch (e) {} closePanel(); },
-    onPlay: function (url) { openPlayer(url); closePanel(); },
+    onPlay: function (url, item) { openPlayer(url, item && item.pageUrl); closePanel(); },
     onRenew: function (pageUrl, item) {
       if (!pageUrl) { toast('No source page for this link'); return; }
       var t = activeTab();
@@ -1103,7 +1103,20 @@
   });
 
   /* ===== Lifecycle ===== */
-  function openPlayer(url) {
+  var currentPlayerPage = '';
+
+  function proxiedUrl(url) {
+    try {
+      var r = '';
+      if (currentPlayerPage) {
+        try { r = new URL(currentPlayerPage).origin + '/'; } catch (e) { r = ''; }
+      }
+      return 'streamo-media://proxy/?u=' + encodeURIComponent(String(url || '')) + (r ? '&r=' + encodeURIComponent(r) : '');
+    } catch (e) { return url; }
+  }
+
+  function openPlayer(url, pageUrl) {
+    currentPlayerPage = pageUrl || '';
     currentPlayerUrl = url || '';
     playerTitle.textContent = url || '';
     playerEl.classList.add('open');
@@ -1129,11 +1142,21 @@
     if (isManifest(url) && window.shaka && window.shaka.Player && (window.shaka.Player.isBrowserSupported ? window.shaka.Player.isBrowserSupported() : true)) {
       try {
         shakaPlayer = new shaka.Player();
-        // ANDROID/CRITICAL: حدود للـ buffer عشان shaka ما يبتعش الـ renderer (سبب OOM للنافذة)
         try {
           shakaPlayer.configure({
             streaming: { bufferingGoal: 20, rebufferingGoal: 2, bufferBehind: 30, jumpLargeGaps: true }
           });
+        } catch (e) {}
+        try {
+          var net = shakaPlayer.getNetworkingEngine && shakaPlayer.getNetworkingEngine();
+          if (net && net.registerRequestFilter) {
+            net.registerRequestFilter(function (type, request) {
+              try {
+                var uri = request.uris && request.uris[0];
+                if (uri && /^https?:\/\//i.test(uri)) request.uris[0] = proxiedUrl(uri);
+              } catch (e) {}
+            });
+          }
         } catch (e) {}
         shakaPlayer.attach(playerVideo).then(function () {
           return shakaPlayer.load(url);
@@ -1153,7 +1176,7 @@
         playerVideo.play().catch(settleErr);
       }
     } else {
-      playerVideo.src = url;
+      playerVideo.src = proxiedUrl(url);
       playerVideo.play().catch(settleErr);
       playerVideo.addEventListener('loadedmetadata', settleOk, { once: true });
       playerVideo.addEventListener('canplay', settleOk, { once: true });
