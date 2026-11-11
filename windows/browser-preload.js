@@ -7,11 +7,12 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('__streamoHook', {
-  send: (url, isMediaElement) => {
+  send: (url, isMediaElement, tagName) => {
     if (typeof url !== 'string') return;
     ipcRenderer.send('streamo:js-url', {
       url: url,
       isMediaElement: !!isMediaElement,
+      tagName: String(tagName || ''),
       pageUrl: String(window.location && window.location.href || '')
     });
   },
