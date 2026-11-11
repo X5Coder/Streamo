@@ -100,9 +100,9 @@ function watchContents(contents, label) {
  * (الواجهة تستقبل 'streamo:guest-gone' بـ reason='memory-guard' وتعمل createTab + destroyTab).
  * لو النافذة نفسها هي اللي تجاوزت الحد → reloadWindow نفس مسار الاستشفاء.
  */
-const MEM_WATCHDOG_MS = 20 * 1000;
-const GUEST_LIMIT_MB = 1500;   // حد التاب — ويندوز عند ~2.6GB يقتل، نحن قبلها بكثير
-const WINDOW_LIMIT_MB = 1100;  // حد النافذة نفسها
+const MEM_WATCHDOG_MS = 15 * 1000;
+const GUEST_LIMIT_MB = 1200;   // حد التاب — قبل ما ويندوز يقتل (٢.٦ GB كانت ضحية)
+const WINDOW_LIMIT_MB = 900;   // حد النافذة نفسها
 
 setInterval(() => {
   try {
@@ -114,7 +114,8 @@ setInterval(() => {
       Promise.resolve(contents.getProcessMemoryInfo()).then((info) => {
         try {
           const kb = (k) => Number(info && info[k]) || 0;
-          const mb = Math.round(Math.max(kb('privateBytes'), kb('workingSetSize'), kb('peakWorkingSetSize')) / 1024);
+          // Electron 33+: ProcessMemoryInfo = { private, residentSet, shared } بالكيلوبايت
+          const mb = Math.round(Math.max(kb('private'), kb('residentSet'), kb('shared')) / 1024);
           if (mb <= 0) return;
           const label = isWindow ? 'main-window' : 'guest:' + contents.id;
           if (mb > 250) console.log('[watchdog]', label, 'using', mb, 'MB');

@@ -1129,6 +1129,12 @@
     if (isManifest(url) && window.shaka && window.shaka.Player && (window.shaka.Player.isBrowserSupported ? window.shaka.Player.isBrowserSupported() : true)) {
       try {
         shakaPlayer = new shaka.Player();
+        // ANDROID/CRITICAL: حدود للـ buffer عشان shaka ما يبتعش الـ renderer (سبب OOM للنافذة)
+        try {
+          shakaPlayer.configure({
+            streaming: { bufferingGoal: 20, rebufferingGoal: 2, bufferBehind: 30, jumpLargeGaps: true }
+          });
+        } catch (e) {}
         shakaPlayer.attach(playerVideo).then(function () {
           return shakaPlayer.load(url);
         }).then(function () {
