@@ -4,7 +4,7 @@
  */
 'use strict';
 
-const { app, BrowserWindow, ipcMain, session, shell, protocol } = require('electron');
+const { app, BrowserWindow, ipcMain, session, shell, protocol, webContents } = require('electron');
 const path = require('path');
 const defense = require('./renderer/shared/defense/defense.js');
 const { probeLink } = require('./probe.js');
@@ -93,6 +93,46 @@ function watchContents(contents, label) {
   }
 }
 
+/* ================= Memory Watchdog =================
+ * السبب الحقيقي للـ OOM: صفحات البث (vkvideo embeds) بتبلغ الذاكرة في الـ guest renderer
+ * لحد ما ويندوز يقتلها (reason=oom exitCode=-536870904). بدل ما ينتظر القتل:
+ * كل 20 ثانية نفحص ذاكرة كل WebContents — لو تاب تجاوزت الحد، نعيد إنشاءها بنفس الرابط
+ * (الواجهة تستقبل 'streamo:guest-gone' بـ reason='memory-guard' وتعمل createTab + destroyTab).
+ * لو النافذة نفسها هي اللي تجاوزت الحد → reloadWindow نفس مسار الاستشفاء.
+ */
+const MEM_WATCHDOG_MS = 20 * 1000;
+const GUEST_LIMIT_MB = 1500;   // حد التاب — ويندوز عند ~2.6GB يقتل، نحن قبلها بكثير
+const WINDOW_LIMIT_MB = 1100;  // حد النافذة نفسها
+
+setInterval(() => {
+  try {
+    if (!webContents || typeof webContents.getAllWebContents !== 'function') return;
+    const list = webContents.getAllWebContents() || [];
+    for (const contents of list) {
+      if (!contents || contents.isDestroyed()) continue;
+      const isWindow = win && !win.isDestroyed() && contents.id === win.webContents.id;
+      Promise.resolve(contents.getProcessMemoryInfo()).then((info) => {
+        try {
+          const kb = (k) => Number(info && info[k]) || 0;
+          const mb = Math.round(Math.max(kb('privateBytes'), kb('workingSetSize'), kb('peakWorkingSetSize')) / 1024);
+          if (mb <= 0) return;
+          const label = isWindow ? 'main-window' : 'guest:' + contents.id;
+          if (mb > 250) console.log('[watchdog]', label, 'using', mb, 'MB');
+          if (isWindow && mb > WINDOW_LIMIT_MB) {
+            console.error('[watchdog] main-window using', mb, 'MB — reloading');
+            scheduleWindowRecovery('memory-guard');
+            return;
+          }
+          if (!isWindow && mb > GUEST_LIMIT_MB) {
+            console.error('[watchdog] guest', contents.id, 'using', mb, 'MB — recreating tab');
+            try { win && !win.isDestroyed() && win.webContents.send('streamo:guest-gone', { wcId: contents.id, reason: 'memory-guard' }); } catch (e) {}
+          }
+        } catch (e) { /* الذاكرة متغيرة دائمًا — تجاهل */ }
+      }).catch(() => {});
+    }
+  } catch (e) { /* watchdog لا يكسر شيء */ }
+}, MEM_WATCHDOG_MS).unref();
+
 /* ================= الدرع (نواة) ================= */
 
 /** بروتوكول stub محلي: يرد 200 بجسم فاضي — الموقع لا يعرف أن الإعلان تم حبسه */
@@ -156,6 +196,12 @@ function registerCapture() {
       return;
     }
     if (verdict === 'stub') {
+      // fetch/XHR/ping — الـ CORS-block من streamo-stub بيخلي الـ SDKs تعمل retry storm → إلغاء مباشر بدل redirect
+      const rt = String(details.resourceType || '').toLowerCase();
+      if (rt === 'fetch' || rt === 'xmlhttprequest' || rt === 'ping' || rt === 'eventsource' || rt === 'websocket' || rt === 'manifest') {
+        callback({ cancel: true });
+        return;
+      }
       callback({
         redirectURL: 'streamo-stub://ok/' + encodeURIComponent(resourceType || 'other') +
           '?u=' + encodeURIComponent(url)
