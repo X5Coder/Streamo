@@ -213,7 +213,10 @@ function registerMediaProxy() {
       };
       const range = request.headers.get('range');
       if (range) headers['Range'] = range;
-      if (referer) headers['Referer'] = referer;
+      if (referer) {
+        headers['Referer'] = referer;
+        try { headers['Origin'] = new URL(referer).origin; } catch (e) {}
+      }
       const resp = await fetch(target, { method: 'GET', headers, redirect: 'follow' });
       const outHeaders = new Headers();
       for (const [k, v] of resp.headers) {
