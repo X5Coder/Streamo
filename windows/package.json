@@ -1,0 +1,47 @@
+{
+  "name": "streamo-link",
+  "productName": "Streamo Link",
+  "version": "2.0.0",
+  "description": "Streamo Link — متصفح داخلي يلتقط روابط الفيديو ويختبرها (نسخة ويندوز المستقلة)",
+  "main": "main.js",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "node dev-reload.js",
+    "sync-shared": "powershell -NoProfile -ExecutionPolicy Bypass -File sync-shared.ps1",
+    "dist": "npm run sync-shared && electron-builder --win portable",
+    "pack": "npm run sync-shared && electron-builder --win portable --dir"
+  },
+  "build": {
+    "appId": "com.Streamo.link.windows",
+    "productName": "Streamo Link",
+    "copyright": "Coding By Kimo",
+    "files": [
+      "main.js",
+      "probe.js",
+      "preload.js",
+      "browser-preload.js",
+      "renderer/**",
+      "assets/app_icon.ico"
+    ],
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "portable",
+      "icon": "assets/app_icon.ico",
+      "artifactName": "Streamo-Link-v${version}-portable.exe",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "portable": {
+      "artifactName": "Streamo-Link-v${version}-portable.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "png-to-ico": "^2.1.8"
+  }
+}

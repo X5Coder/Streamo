@@ -1,0 +1,276 @@
+/*
+ * Streamo Link — نواة تطبيق الويندوز (مستقل، ملف exe واحد).
+ * المتصفح + درع الإعلانات + اختبار الروابط (طلب HTTP بسيط Range في النواة — لا يوجد webview مخفي).
+ */
+'use strict';
+
+const { app, BrowserWindow, ipcMain, session, shell, protocol } = require('electron');
+const path = require('path');
+const defense = require('./renderer/shared/defense/defense.js');
+const { probeLink } = require('./probe.js');
+
+// تسجيل بروتوكول الـ stub كـ "متميز" قبل الجاهزية — بدونه الـ redirect لن يصل للـ handler
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'streamo-stub',
+    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true }
+  }
+]);
+
+const PARTITION = 'persist:streamo';
+const MEDIA_RE = /\.(mp4|webm|ogv|ogg|mkv|mov|avi|flv|mp3|m4a|wav|aac|opus|flac|m3u8|mpd)([?#].*)?$/i;
+const TS_RE = /\.ts([?#].*)?$/i;
+const MEDIA_MIME_RE = /^(video\/|audio\/|application\/vnd\.apple\.mpegurl|application\/x-mpegurl|application\/mpegurl|application\/dash\+xml)/i;
+const DEDUPE_MS = 10 * 60 * 1000;
+const MIN_TS_SIZE = 25 * 1024 * 1024; // تجاهل مقاطع HLS الصغيرة (أصغر من 25MB تعتبر segment)
+
+let win = null;
+
+/* ================= الدرع (نواة) ================= */
+
+/** بروتوكول stub محلي: يرد 200 بجسم فاضي — الموقع لا يعرف أن الإعلان تم حبسه */
+function registerStreamoStub() {
+  protocol.handle('streamo-stub', (request) => {
+    try {
+      const u = new URL(request.url);
+      const kind = decodeURIComponent(u.pathname.replace(/^\//, ''));
+      const original = u.searchParams.get('u') || '';
+      const stub = defense.stubFor(kind, original);
+      return new Response(stub.body, {
+        status: 200,
+        headers: {
+          'content-type': stub.mime,
+          'access-control-allow-origin': '*',
+          'cache-control': 'no-store'
+        }
+      });
+    } catch (e) {
+      return new Response('', { status: 200, headers: { 'content-type': 'text/plain' } });
+    }
+  });
+}
+
+const recentCaptures = new Map();
+function shouldSend(url) {
+  const now = Date.now();
+  const last = recentCaptures.get(url);
+  if (last && now - last < DEDUPE_MS) return false;
+  if (recentCaptures.size > 300) recentCaptures.clear();
+  recentCaptures.set(url, now);
+  return true;
+}
+
+function sendLink(payload) {
+  if (win && !win.isDestroyed()) win.webContents.send('streamo:link', payload);
+}
+
+function headerValue(headers, name) {
+  if (!headers) return null;
+  const key = Object.keys(headers).find((k) => k.toLowerCase() === name);
+  if (!key) return null;
+  const v = headers[key];
+  return Array.isArray(v) ? v[0] : v;
+}
+
+function registerCapture() {
+  defense.loadLists(path.join(__dirname, 'renderer', 'shared', 'defense'));
+  const ses = session.fromPartition(PARTITION);
+
+  // خط الدفاع NET: قرار لكل طلب قبل خروجه (إعادة توجيه لـ stub / إلغاء تحويلة إعلان)
+  ses.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*'] }, (details, callback) => {
+    const url = details.url || '';
+    const resourceType = String(details.resourceType || '').toLowerCase();
+    const isMainFrame = resourceType === 'mainframe';
+    const pageUrl = details.initiator || '';
+    const verdict = defense.decide(url, { isMainFrame, pageUrl });
+
+    if (verdict === 'fail') {
+      callback({ cancel: true });
+      return;
+    }
+    if (verdict === 'stub') {
+      callback({
+        redirectURL: 'streamo-stub://ok/' + encodeURIComponent(resourceType || 'other') +
+          '?u=' + encodeURIComponent(url)
+      });
+      return;
+    }
+
+    // التقاط الوسائط — فقط ما ليس إعلانًا (إعلانات الفيديو كانت تلوّث السجل)
+    if (MEDIA_RE.test(url) && !TS_RE.test(url) && shouldSend(url)) {
+      sendLink({ url, source: 'request', tabId: details.tabId, initiator: details.initiator || '' });
+    }
+    callback({});
+  });
+
+  // صيد عبر Content-Type (الروابط بدون امتداد أو بامتداد مزيف)
+  ses.webRequest.onHeadersReceived(
+    { urls: ['http://*/*', 'https://*/*'] },
+    (details, callback) => {
+      const url = details.url || '';
+      if (defense.decide(url, { isMainFrame: false, pageUrl: details.initiator || '' }) !== 'allow') {
+        callback({ responseHeaders: details.responseHeaders });
+        return;
+      }
+      const mime = String(headerValue(details.responseHeaders, 'content-type') || '');
+      const length = parseInt(headerValue(details.responseHeaders, 'content-length') || '0', 10);
+      if (MEDIA_MIME_RE.test(mime)) {
+        const isTs = TS_RE.test(url);
+        const smallSegment = isTs && length > 0 && length < MIN_TS_SIZE;
+        if (!smallSegment && shouldSend(url)) {
+          sendLink({ url, contentType: mime, size: length > 0 ? length : null, source: 'mime', tabId: details.tabId, initiator: details.initiator || '' });
+        }
+      }
+      callback({ responseHeaders: details.responseHeaders });
+    }
+  );
+
+  // روابط من حقن JS (وسوم video/audio + fetch/XHR) — تحمل pageUrl الدقيق من نفس الصفحة
+  ipcMain.on('streamo:js-url', (event, payload) => {
+    const url = payload && payload.url;
+    const isMediaElement = payload && payload.isMediaElement;
+    const pageUrl = payload && typeof payload.pageUrl === 'string' ? payload.pageUrl : '';
+    if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) return;
+    if (defense.decide(url, { isMainFrame: false, pageUrl: '' }) !== 'allow') return;
+    // وسوم الوسائط تُقبل كاملة (حتى .ts لو الصفحة نفسها طالبة ياه)؛ باقي الـ JS فقط ما يطابق الامتداد مع استبعاد مقاطع .ts
+    if (isMediaElement || (MEDIA_RE.test(url) && !TS_RE.test(url))) {
+      if (shouldSend(url)) sendLink({ url, source: 'js', pageUrl });
+    }
+  });
+
+  // حكم متزامن صامت للتحويلات الرئيسية (لاستخدامات التصنيف فقط — بدون عدّاد)
+  ipcMain.on('streamo:should-block-nav', (event, url) => {
+    const verdict = defense.decide(String(url || ''), { isMainFrame: true, pageUrl: '' });
+    event.returnValue = (verdict === 'fail');
+  });
+
+  // حكم صامت لتصنيف الدومين (بدون عدّاد/تسجيل) — للاستخدام في حارس التنقل
+  ipcMain.on('streamo:is-ad-nav', (event, url) => {
+    const verdict = defense.decide(String(url || ''), { isMainFrame: true, pageUrl: '' });
+    event.returnValue = (verdict === 'fail');
+  });
+
+  // تمرير الرابط اللي المستخدم ضغط عليه فعلاً للواجهة — أساس القفل الذكي
+  ipcMain.on('streamo:anchor', (event, href) => {
+    if (typeof href !== 'string' || !/^https?:\/\//i.test(href)) return;
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('streamo:anchor-click', { wcId: event.sender.id, href });
+    }
+  });
+
+  // تمرير الصفحة الحالية بتاعة أي webview — أساس نسب الالتقاط للصفحة الصح
+  ipcMain.on('streamo:seen-page', (event, href) => {
+    if (typeof href !== 'string' || !/^https?:\/\//i.test(href)) return;
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('streamo:seen-page', { wcId: event.sender.id, href });
+    }
+  });
+
+  // تمرير نية النقل من الضغطة (حتى لو ابتلعتها الصفحة) — أساس rescue من الإعلانات
+  ipcMain.on('streamo:nav-intent', (event, payload) => {
+    const href = payload && typeof payload.href === 'string' ? payload.href : '';
+    const prevented = !!(payload && payload.prevented);
+    if (!/^https?:\/\//i.test(href)) return;
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('streamo:nav-intent', { wcId: event.sender.id, href, prevented });
+    }
+  });
+}
+
+function createMainWindow() {
+  win = new BrowserWindow({
+    width: 1100,
+    height: 700,
+    minWidth: 1000,
+    minHeight: 560,
+    show: false, // تُظهر فور الجاهزية (بدون سبلاش)
+    autoHideMenuBar: true,
+    backgroundColor: '#000000',
+    title: 'Streamo Link',
+    icon: path.join(__dirname, 'assets', 'app_icon.ico'),
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      webviewTag: true // بدونها وسم <webview> لا يُنشأ خالص
+    }
+  });
+  win.removeMenu();
+
+  win.once('ready-to-show', () => {
+    win.show();
+  });
+
+  win.loadFile(path.join(__dirname, 'renderer', 'chrome.html'), {
+    query: {
+      browserPreload: path.join(__dirname, 'browser-preload.js')
+    }
+  });
+}
+
+app.whenReady().then(() => {
+  try {
+    registerStreamoStub();
+    registerCapture();
+  } catch (e) {
+    console.error('defense registration failed:', e);
+  }
+  createMainWindow();
+
+  // حارس النوافذ الجديدة (Electron ≥12): أي window.open / target=_blank من أي WebContents → الواجهة تقرر
+  app.on('web-contents-created', (event, contents) => {
+    try {
+      if (!contents) return;
+      const w = win && !win.isDestroyed() ? win : null;
+      // تجاهل النافذة الرئيسية نفسها — نافذة التطبيق ما بتحتاجش حد يمنعها
+      if (w && contents.id === w.webContents.id) return;
+      console.log('[popup] handler attached to contents', contents.id, 'type=', contents.getType && contents.getType());
+      contents.setWindowOpenHandler(({ url }) => {
+        // الصفحة المصدر — من نفس الـ WebContents مباشرة (لا حاجة لخرائط الواجهة)
+        let src = '';
+        try { src = contents.getURL() || ''; } catch (e) {}
+        const w2 = win && !win.isDestroyed() ? win : null;
+        console.log('[popup] request', url, '\n        from', src || '(unknown)');
+        if (w2) {
+          try { w2.webContents.send('streamo:popup', { wcId: contents.id, url, srcUrl: src }); } catch (e) {}
+        }
+        return { action: 'deny' }; // ماينفتحش كـ pop-up؛ الواجهة تقرر تفتحه كتابا لو سياسة الدومين تسمح
+      });
+    } catch (e) {
+      console.error('window-open handler failed:', e);
+    }
+  });
+
+  // اختبار الرابط من الـ renderer — رد عبر Promise
+  ipcMain.handle('streamo:test-link', async (event, payload) => {
+    const url = payload && typeof payload.url === 'string' ? payload.url : '';
+    const pageUrl = payload && typeof payload.pageUrl === 'string' ? payload.pageUrl : '';
+    if (!/^https?:\/\//i.test(url)) {
+      return { url, status: 'fail', type: 'unknown', error: 'UNSUPPORTED', testedInMs: 0 };
+    }
+    try {
+      return await probeLink(url, pageUrl);
+    } catch (e) {
+      return { url, status: 'fail', type: 'unknown', error: 'EXCEPTION', testedInMs: 0 };
+    }
+  });
+
+  // تتبّع "ضغطة حقيقية" داخل أي WebView (إشارة ثقة للتحويلات)
+  const gestures = new Map(); // webContentsId -> timestamp
+  ipcMain.on('streamo:gesture', (event) => {
+    gestures.set(event.sender.id, Date.now());
+    if (gestures.size > 300) gestures.clear();
+  });
+  ipcMain.on('streamo:gesture-for', (event, id) => {
+    const ts = gestures.get(Number(id));
+    event.returnValue = !!ts && (Date.now() - ts) < 2000;
+  });
+
+  ipcMain.on('streamo:open-external', (event, url) => {
+    if (typeof url === 'string' && /^https?:\/\//i.test(url)) shell.openExternal(url);
+  });
+});
+
+app.on('window-all-closed', () => {
+  app.quit();
+});

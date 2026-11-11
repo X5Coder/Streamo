@@ -1,0 +1,78 @@
+/*
+ * Streamo Link — renderer preload (contextIsolation on).
+ * Only a narrow, explicit surface is exposed to the page.
+ */
+'use strict';
+
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('streamoBridge', {
+  /** Open an external URL via the system (player / browser) */
+  openExternal: (url) => {
+    if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
+      ipcRenderer.send('streamo:open-external', url);
+    }
+  },
+  /** Receive captured links from the main process */
+  onLinkFound: (callback) => {
+    ipcRenderer.on('streamo:link', (event, payload) => {
+      try { callback(payload); } catch (e) { console.error('link callback', e); }
+    });
+  },
+  /** Sync verdict: is this main-frame destination an ad? */
+  isAdNav: (url) => {
+    try {
+      return ipcRenderer.sendSync('streamo:should-block-nav', url) === true;
+    } catch (e) {
+      return false;
+    }
+  },
+  /** Sync quiet verdict (no side effects) */
+  isAdNavQuiet: (url) => {
+    try {
+      return ipcRenderer.sendSync('streamo:is-ad-nav', url) === true;
+    } catch (e) {
+      return false;
+    }
+  },
+  /** Did the user genuinely click inside this webContents in the last 2s? */
+  hasGesture: (webContentsId) => {
+    try {
+      return ipcRenderer.sendSync('streamo:gesture-for', webContentsId) === true;
+    } catch (e) {
+      return false;
+    }
+  },
+  /** Test a link (single simple HTTP probe in the main process) */
+  testLink: (url, pageUrl) => {
+    try {
+      return ipcRenderer.invoke('streamo:test-link', { url: String(url || ''), pageUrl: String(pageUrl || '') });
+    } catch (e) {
+      return Promise.resolve({ url: url, status: 'fail', error: 'EXCEPTION' });
+    }
+  },
+  /** The href of the anchor the user actually clicked (for the domain lock) */
+  onAnchorClick: (callback) => {
+    ipcRenderer.on('streamo:anchor-click', (event, payload) => {
+      try { callback && callback(payload); } catch (e) { console.error('anchor callback', e); }
+    });
+  },
+  /** The current URL of any webview, reported by its preload (ref. wcId) */
+  onSeenPage: (callback) => {
+    ipcRenderer.on('streamo:seen-page', (event, payload) => {
+      try { callback && callback(payload); } catch (e) { console.error('seen-page callback', e); }
+    });
+  },
+  /** Requests to open a new window (window.open / target=_blank) — the app decides the policy */
+  onPopup: (callback) => {
+    ipcRenderer.on('streamo:popup', (event, payload) => {
+      try { callback && callback(payload); } catch (e) { console.error('popup callback', e); }
+    });
+  },
+  /** Click intent reported by the guest (maybe swallowed by the page's ad scripts) */
+  onNavIntent: (callback) => {
+    ipcRenderer.on('streamo:nav-intent', (event, payload) => {
+      try { callback && callback(payload); } catch (e) { console.error('nav-intent callback', e); }
+    });
+  }
+});
