@@ -9,3 +9,8 @@ dtscdn.com
 mrktmtrcs.net
 onaudience.com
 newshinyd.com
+sdk-api.apptracer.ru
+apptracer.ru
+stats.vk-portal.net
+vk-portal.net
+
