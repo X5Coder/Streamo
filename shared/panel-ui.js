@@ -45,6 +45,14 @@ var StreamoPanelUI = (function () {
     return t ? '<span class="card-time">' + SVG.clock + ' ' + StreamoStore.escapeHtml(t) + '</span>' : '';
   }
 
+  /** Expiry chip — shown only once the link is verified (ok), never while Testing */
+  function expiryChip(item) {
+    if (item.status !== 'ok') return '';
+    var expiry = StreamoStore.parseExpiry(item.url);
+    if (!expiry) return '';
+    return '<div class="expiry' + (expiry.expired ? ' expired' : '') + '" data-expires-at="' + expiry.expiresAt + '">' + SVG.clock + '<span class="expiry-text">' + StreamoStore.formatExpiry(expiry.remainingSeconds) + '</span></div>';
+  }
+
   function metaLine(item) {
     var bits = [];
     bits.push('<b>' + typeLabel(item.type) + '</b>');
@@ -57,7 +65,6 @@ var StreamoPanelUI = (function () {
   }
 
   function linkCard(item, actions) {
-    var expiry = StreamoStore.parseExpiry(item.url);
     var hasRenew = typeof actions.onRenew === 'function';
     var hasPlay = typeof actions.onPlay === 'function';
     var onOpen = actions.onOpenGoogle || actions.onOpen;
@@ -66,7 +73,7 @@ var StreamoPanelUI = (function () {
       // الرابط الشغال يعرض كل الأزرار
       if (onOpen) buttons.push('<button class="action-btn" data-act="google">' + SVG.open + 'Open</button>');
       if (hasPlay) buttons.push('<button class="action-btn" data-act="play">' + SVG.play + 'Player</button>');
-      if (actions.onCopy) buttons.push('<button class="action-btn" data-act="copy">' + SVG.copy + 'Copy</button>');
+      if (actions.onCopy) buttons.push('<button class="action-btn" data-act="copy">Copy</button>');
       if (hasRenew) buttons.push('<button class="action-btn" data-act="renew">' + SVG.renew + 'Renew</button>');
     } else if (hasRenew) {
       // الرابط الفاشل أو لسه بيتفحص: بدون أزرار نسخ أو فتح — يجدد بس
@@ -80,7 +87,7 @@ var StreamoPanelUI = (function () {
         '</div>' +
         '<div class="card-url" dir="ltr" title="' + StreamoStore.escapeHtml(item.finalUrl || item.url) + '">' + StreamoStore.escapeHtml(item.finalUrl || item.url) + '</div>' +
         '<div class="card-time-row">' + captureTime(item) +
-          (expiry ? '<div class="expiry' + (expiry.expired ? ' expired' : '') + '" data-expires-at="' + expiry.expiresAt + '">' + SVG.clock + '<span class="expiry-text">' + StreamoStore.formatExpiry(expiry.remainingSeconds) + '</span></div>' : '') +
+          expiryChip(item) +
         '</div>' +
         (buttons.length ? '<div class="card-actions">' + buttons.join('') + '</div>' : '') +
       '</div>'

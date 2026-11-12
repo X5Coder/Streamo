@@ -80,5 +80,31 @@ contextBridge.exposeInMainWorld('streamoBridge', {
     ipcRenderer.on('streamo:guest-gone', (event, payload) => {
       try { callback && callback(payload); } catch (e) { console.error('guest-gone callback', e); }
     });
+  },
+  /** Live memory report from the main process (per-tab, total, system free) */
+  onMemory: (callback) => {
+    ipcRenderer.on('streamo:memory', (event, payload) => {
+      try { callback && callback(payload); } catch (e) { console.error('memory callback', e); }
+    });
+  },
+  /** Loopback media proxy used by the internal player (port + random token) */
+  getMediaProxy: () => {
+    try { return ipcRenderer.invoke('streamo:media-proxy'); }
+    catch (e) { return Promise.resolve(null); }
+  },
+  /** One-shot: did the app just crash? (used to restore every tab asleep) */
+  consumeCrashFlag: () => {
+    try { return ipcRenderer.invoke('streamo:consume-crash-flag'); }
+    catch (e) { return Promise.resolve(false); }
+  },
+  /** The app is quitting now — flush the tab session synchronously before exit */
+  onFlushSession: (callback) => {
+    ipcRenderer.on('streamo:flush-session', () => {
+      try { callback && callback(); } catch (e) {}
+    });
+  },
+  /** The internal player was closed - the heavy media cache can be dropped */
+  notifyPlayerClosed: () => {
+    try { ipcRenderer.send('streamo:player-closed'); } catch (e) {}
   }
 });

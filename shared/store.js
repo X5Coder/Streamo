@@ -80,7 +80,13 @@ var StreamoStore = (function () {
     }
   }
 
-  /* ---------- تنظيف لمرة واحدة: الروابط الفاشلة + التكرارات ---------- */
+  /* ---------- تنظيف لمرة واحدة: الروابط الفاشلة + التكرارات + الروابط غير القابلة للتشغيل ----------
+   * أي رابط مش هيظهر بزرار تشغيل يُعتبر فاشل ويُحذف نهائياً:
+   *   - status === 'fail'
+   *   - روابط DASH (.mpd) — تنزيل مش عرض
+   *   - روابط التقاط بمدى بايتات (?bytes=...-...) — ملفات جزئية
+   *   - نوع dash المحفوظ في السجلات القديمة
+   */
   function sanitizeLinks() {
     var links = read(LINKS_KEY);
     if (!links.length) return;
@@ -89,8 +95,32 @@ var StreamoStore = (function () {
     for (var i = 0; i < links.length; i++) {
       var item = links[i];
       if (item.status === 'fail') continue; // الروابط الفاشلة ما فيش منها فات
+      var url = String(item.url || '');
+      if (/\.mpd(\?|#|$)/i.test(url)) continue;
+      if (/[?&]bytes=\d+-\d*/i.test(url)) continue;
+      if (item.type === 'dash') continue;
+      // audio-only captures have no business in a video link list (capture blocks them now)
+      if (item.type === 'audio') continue;
+      if (/\.(mp3|m4a|aac|wav|opus|flac)(\?|#|$)/i.test(url)) continue;
       var key = linkDedupeKey(item.url);
-      if (seen[key]) continue;
+      if (seen[key]) {
+        // نفس الفيلم مكرر — الأفضل (master) يبقى في المدخل الأول بالمفتاح
+        var ix = -1;
+        for (var j = 0; j < out.length; j++) {
+          if (linkDedupeKey(out[j].url) === key) { ix = j; break; }
+        }
+        if (ix >= 0) {
+          var challenger = item;
+          var merged = scoreMovieEntry(challenger) > scoreMovieEntry(out[ix]);
+          var winner = merged ? challenger : out[ix];
+          var loser = merged ? out[ix] : challenger;
+          var wc = {}; for (var wk in winner) wc[wk] = winner[wk];
+          if (!wc.pageUrl && loser.pageUrl) wc.pageUrl = loser.pageUrl;
+          wc.isMaster = /master\.m3u8(\?|#|$)|\.urlset\//i.test(String(wc.url || '')) || wc.isMaster === true;
+          out[ix] = wc;
+        }
+        continue;
+      }
       seen[key] = true;
       out.push(item);
     }
@@ -148,40 +178,84 @@ var StreamoStore = (function () {
 
   function getLinks() { return read(LINKS_KEY); }
 
-  /* روابط التوقيع المتغير لنفس الملف (مثل token/exp في HLS) تُعامل كرابط واحد */
+  /* روابط التوقيع المتغير لنفس الملف (مثل token/exp في HLS) تُعامل كرابط واحد،
+     وعند الروابط HLS الأذكى: يُدار المفتاح "مفتاح الفيلم" — host + مجلدات فقط،
+     بعد إسقاط مقاطع الـ timestamps (أرقام فقط ≥ 9 خانات) والسلاسل الافتراضية
+     للجودة (segment ببادئة "الاسم_" يتحول للجزء السابق للـ _)، وبدون اسم الملف.
+     يعني master.m3u8 و index-v1-a1.m3u8 لنفس الفيلم يبقوا كارت واحد. */
   function linkDedupeKey(url) {
     try {
       var u = new URL(String(url || ''));
       var p = (u.pathname || '').toLowerCase();
-      if (/\.(m3u8|mpd|ts)$/i.test(p)) return (u.origin || '').toLowerCase() + p;
+      if (/\.m3u8$/i.test(p)) {
+        var segs = p.split('/').filter(Boolean);
+        if (segs.length > 1) segs = segs.slice(0, -1); // drop the playlist filename
+        var kept = [];
+        for (var i = 0; i < segs.length; i++) {
+          var s = segs[i];
+          if (/^\d{9,}$/.test(s)) continue; // signature/timestamp path segment
+          var ix = s.indexOf('_');
+          kept.push(ix > 0 ? s.slice(0, ix) : s); // strip quality suffixes (_,l,h,.urlset / _l / _h / _360p...)
+        }
+        return (u.origin || '').toLowerCase() + '/' + kept.join('/');
+      }
+      if (/\.ts$/i.test(p)) return (u.origin || '').toLowerCase() + p;
       return String(u.href);
     } catch (e) {
       return String(url || '');
     }
   }
 
+  /** Best-first scoring for same-movie entries: master playlist > media playlist. */
+  function scoreMovieEntry(item) {
+    var url = String((item && item.url) || '');
+    var s = 0;
+    if (item && item.isMaster === true) s += 100;
+    else if (/master\.m3u8(\?|#|$)|\.urlset\//i.test(url)) s += 50;
+    else if (/index|playlist|media|chunklist|video/i.test(url)) s -= 1;
+    return s;
+  }
+
   /**
-   * إضافة رابط. **لا يمكن أن يظهر نفس الرابط مرتين في القائمة** — إن وُجد تُعيد المدخل نفسه.
-   * يعيد { entry, added }.
+   * إضافة رابط. **لا يمكن أن يظهر الفيلم الواحد بمدخلين** — أي رابط آخر لنفس الفيلم
+   * (master + variant مثلاً) يُدمج مع المدخل الموجود، والأفضل (master أولاً) يُحتفظ به.
+   * extra = { isMaster: boolean } اختياري. يعيد { entry, added, merged }.
    */
-  function addLink(url, pageUrl) {
+  function addLink(url, pageUrl, extra) {
+    var rawUrl = String(url || '');
+    // دفاع إضافي: روابط DASH والالتقاط الجزئي لا تُضاف نهائياً حتى لو وصلت للواجهة
+    if (/\.mpd(\?|#|$)/i.test(rawUrl) || /[?&]bytes=\d+-\d*/i.test(rawUrl)) {
+      return { entry: null, added: false };
+    }
     var links = read(LINKS_KEY);
     var t = now();
     var key = linkDedupeKey(url);
-    var dup = null;
+    var isMaster = !!(extra && extra.isMaster) || /master\.m3u8(\?|#|$)|\.urlset\//i.test(rawUrl);
     for (var i = 0; i < links.length; i++) {
-      if (linkDedupeKey(links[i].url) === key) { dup = links[i]; break; }
-    }
-    if (dup) {
-      // حدّث مصدر الصفحة لو كان فاضيًا — وإلا لا نفعل شيئًا
-      if (pageUrl && !dup.pageUrl) {
-        var copy = {}; for (var k in dup) copy[k] = dup[k];
-        copy.pageUrl = pageUrl;
+      if (linkDedupeKey(links[i].url) !== key) continue;
+      // نفس الفيلم موجود — الأفضل يبقى: master يتغلب على media playlist
+      var existing = links[i];
+      var incomingScore = scoreMovieEntry({ url: url, isMaster: isMaster });
+      var existingScore = scoreMovieEntry(existing);
+      var copy = {}; for (var k in existing) copy[k] = existing[k];
+      var upgraded = false;
+      if (incomingScore > existingScore) {
+        // master جديد أفضل من variant محفوظ — رقّي المدخل نفسه (نفس id)
+        copy.url = url;
+        copy.type = isMaster ? 'hls' : guessType(url);
+        copy.isMaster = isMaster;
+        upgraded = true;
+      } else if (isMaster && copy.isMaster !== true) {
+        copy.isMaster = true;
+        upgraded = true;
+      }
+      if (pageUrl && !copy.pageUrl) { copy.pageUrl = pageUrl; upgraded = true; }
+      if (upgraded) {
         links[i] = copy;
         write(LINKS_KEY, links);
-        return { entry: copy, added: false };
+        return { entry: copy, added: false, merged: true };
       }
-      return { entry: dup, added: false };
+      return { entry: copy, added: false, merged: true };
     }
 
     var entry = {
@@ -198,7 +272,8 @@ var StreamoStore = (function () {
       finalUrl: null,
       pageUrl: pageUrl || '',     // الصفحة اللي اتسحب منها (للتجميع)
       ts: t,
-      testedAt: null
+      testedAt: null,
+      isMaster: isMaster ? true : false
     };
     links.unshift(entry);
     if (links.length > MAX_LINKS) links.length = MAX_LINKS;
@@ -384,6 +459,7 @@ var StreamoStore = (function () {
     removeSearch: removeSearch,
     clearSearch: clearSearch,
     guessType: guessType,
+    movieKeyFor: linkDedupeKey,
     parseExpiry: parseExpiry,
     formatBytes: formatBytes,
     formatDuration: formatDuration,

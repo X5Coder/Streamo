@@ -42,15 +42,18 @@
   var urlPill = document.getElementById('urlPill');
   var urlInput = document.getElementById('urlInput');
   var urlLock = document.getElementById('urlLock');
-  var btnCopyUrl = document.getElementById('btnCopyUrl');
+  var btnHome = document.getElementById('btnHome');
   var btnUrlGo = document.getElementById('btnUrlGo');
   var lockIconLocked = document.getElementById('lockIconLocked');
   var lockIconUnlocked = document.getElementById('lockIconUnlocked');
 
   var HOOK =
     "(function(){try{if(window.__streamoHookReady)return;window.__streamoHookReady=true;" +
+    // Page-level dedupe: stops IPC storms from video players that re-request the same URL.
+    "var sent=Object.create(null),sentN=0;" +
     "function send(u,isMedia,tagName){try{if(!u)return;var a=document.createElement('a');a.href=u;" +
-    "if(a.protocol==='http:'||a.protocol==='https:'){window.__streamoHook.send(a.href, !!isMedia, tagName||'');}}catch(e){}}" +
+    "if(a.protocol==='http:'||a.protocol==='https:'){var k=a.href;if(sent[k])return;sent[k]=1;sentN++;if(sentN>250){sent=Object.create(null);sentN=0;}" +
+    "window.__streamoHook.send(k, !!isMedia, tagName||'');}}catch(e){}}" +
     "var gesture=function(){try{window.__streamoHook.gesture();}catch(e){}};" +
     "document.addEventListener('click',gesture,true);" +
     "document.addEventListener('pointerdown',gesture,true);" +
@@ -65,10 +68,12 @@
     "var of=window.fetch;if(of){window.fetch=function(){try{var a=arguments[0];var u=(typeof a==='string')?a:(a&&a.url);send(u,false);}catch(e){}return of.apply(this,arguments);};}" +
     "var oo=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){try{send(u,false);}catch(e){}return oo.apply(this,arguments);};" +
     "function seen(){try{if(window.__streamoHook&&window.__streamoHook.seen&&window.location&&window.location.href){window.__streamoHook.seen(window.location.href);}}catch(e){}}" +
-    "seen();setInterval(seen,2000);" +
-    "function scan(){try{var n=document.querySelectorAll('video,source');for(var i=0;i<n.length;i++){var t=n[i];send(t.currentSrc||t.src,true,'video');}}catch(e){}}" +
-    "if(window.MutationObserver){new MutationObserver(function(){scan();}).observe(document.documentElement||document,{childList:true,subtree:true,attributes:true,attributeFilter:['src']});}" +
-    "scan();setInterval(scan,3000);" +
+    "seen();setInterval(seen,4000);" +
+    // Debounced DOM scan: a streaming page can emit thousands of mutations per second.
+    "var scanTimer=0;function scanNow(){try{var n=document.querySelectorAll('video,source');for(var i=0;i<n.length;i++){var t=n[i];send(t.currentSrc||t.src,true,'video');}}catch(e){}}" +
+    "function scan(){if(scanTimer)return;scanTimer=setTimeout(function(){scanTimer=0;scanNow();},400);}" +
+    "if(window.MutationObserver){new MutationObserver(scan).observe(document.documentElement||document,{childList:true,subtree:true,attributes:true,attributeFilter:['src']});}" +
+    "scanNow();setInterval(scan,8000);" +
     "}catch(e){}})();";
 
   var LINK_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" stroke="#FFFFFF" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>';
@@ -88,6 +93,17 @@
   var STRIKE_MS = 15000;
   var INTENT_MS = 8000;
   var ANCHOR_INTENT_MS = 5000;
+
+  /* Memory manager state */
+  var memByWcId = {};                 // webContentsId -> current MB from main
+  var lastMemInfo = null;             // last report to keep the tabs panel fresh
+  var IDLE_SLEEP_MS = 15 * 60 * 1000; // hidden tab sleeps after 15 min
+  var PRESSURE_IDLE_MS = 45 * 1000;   // under pressure: only tabs idle >45s unless huge
+  var lastSleepToastAt = 0;
+  /* Notification cooldown: one capture card per movie per 2 minutes — a capture burst
+     (master + variant + signature refreshes) shows exactly ONE card, never a stack. */
+  var movieNotifyAt = new Map();
+  var MOVIE_NOTIFY_WINDOW_MS = 2 * 60 * 1000;
 
   function isHttp(u) { return /^https?:\/\//i.test(String(u || '')); }
 
@@ -202,7 +218,9 @@
     var view = document.createElement('webview');
     view.className = 'tab-view';
     view.setAttribute('partition', 'persist:streamo');
-    view.setAttribute('webpreferences', 'contextIsolation=yes');
+    // spellcheck=no removes a per-renderer dictionary; background throttling keeps
+    // hidden tabs from burning CPU (both are defaults, stated explicitly).
+    view.setAttribute('webpreferences', 'contextIsolation=yes,nodeIntegration=no,backgroundThrottling=yes,spellcheck=no');
     view.setAttribute('allowpopups', 'true'); // let popups flow to the host so domain policy can decide
     if (browserPreload) view.setAttribute('preload', toFileUrl(browserPreload));
     view.src = url || 'https://www.google.com/';
@@ -213,6 +231,8 @@
   function hostNavigate(tab, url) {
     if (tab) {
       try { tab.hostIntent = { etld: etld1(hostOf(url)), freshTs: Date.now() }; } catch (e) {}
+      tab.url = url || tab.url;
+      if (!tab.view) restoreTabView(tab);
       try { tab.view.src = url; } catch (e) {}
     }
   }
@@ -222,11 +242,76 @@
     var id = 't' + tabSeq;
     var view = makeWebview(url);
     viewsContainer.appendChild(view);
-    var tab = { id: id, webContentsId: null, url: url || '', title: url || 'New Tab', view: view, hostIntent: { etld: etld1(hostOf(url || 'https://www.google.com/')), freshTs: Date.now() } };
+    var tab = {
+      id: id,
+      webContentsId: null,
+      url: url || '',
+      title: url || 'New Tab',
+      view: view,
+      hostIntent: { etld: etld1(hostOf(url || 'https://www.google.com/')), freshTs: Date.now() },
+      lastActiveAt: Date.now(),
+      sleeping: false,
+      lastReloadAt: 0,
+      crashCount: 0,
+      lastCrashAt: 0
+    };
     tabs.push(tab);
     attachViewHooks(tab);
     activateTab(id);
     return tab;
+  }
+
+  /** Recreate the webview of a sleeping tab without touching the tab itself. */
+  function restoreTabView(tab) {
+    if (!tab || tab.view) return;
+    var view = makeWebview(tab.url || 'https://www.google.com/');
+    view.style.display = 'none';
+    viewsContainer.appendChild(view);
+    tab.view = view;
+    tab.sleeping = false;
+    tab.webContentsId = null;
+    attachViewHooks(tab);
+    renderTabsList();
+  }
+
+  /** Destroy the webview but keep the tab + URL (memory saver / crash recovery). */
+  function destroyTabView(tab) {
+    if (!tab) return;
+    var view = tab.view;
+    if (!view) {
+      tab.sleeping = true;
+      tab.webContentsId = null;
+      return;
+    }
+    try {
+      if (typeof view.getURL === 'function') {
+        var liveUrl = view.getURL();
+        if (liveUrl) tab.url = liveUrl;
+      }
+    } catch (e) {}
+    try {
+      if (typeof view.getTitle === 'function') {
+        var liveTitle = view.getTitle();
+        if (liveTitle) tab.title = liveTitle;
+      }
+    } catch (e) {}
+    try {
+      if (typeof view.destroy === 'function') view.destroy();
+      else if (view.parentNode) view.parentNode.removeChild(view);
+    } catch (e) {
+      try { if (view.parentNode) view.parentNode.removeChild(view); } catch (e2) {}
+    }
+    tab.view = null;
+    tab.sleeping = true;
+    var oldWc = tab.webContentsId;
+    tab.webContentsId = null;
+    if (oldWc != null) {
+      urlByTab.delete(oldWc);
+      titleByTab.delete(oldWc);
+      anchorClicks.delete(oldWc);
+      pageByWebContents.delete(oldWc);
+      delete memByWcId[oldWc];
+    }
   }
 
   function attachViewHooks(tab) {
@@ -237,6 +322,8 @@
         tab.webContentsId = view.getWebContentsId();
         urlByTab.set(tab.webContentsId, tab.url);
         view.executeJavaScript(HOOK).catch(function () {});
+        renderTabsList();
+        updateMemoryStatus(lastMemInfo);
       } catch (e) {}
     });
     view.addEventListener('did-finish-load', function () {
@@ -309,6 +396,11 @@
     tab = tab || activeTab();
     if (!tab || tab.id !== activeTabId) return;
     var view = tab.view;
+    if (!view) {
+      btnBack.disabled = true;
+      btnForward.disabled = true;
+      return;
+    }
     try {
       var canBack = (typeof view.canGoBack === 'function') ? view.canGoBack() : true;
       var canFwd = (typeof view.canGoForward === 'function') ? view.canGoForward() : true;
@@ -321,12 +413,17 @@
   }
 
   function activateTab(id) {
+    var prev = activeTab();
+    if (prev && prev.id !== id) prev.lastActiveAt = Date.now();
     activeTabId = id;
-    for (var i = 0; i < tabs.length; i++) {
-      tabs[i].view.style.display = (tabs[i].id === id) ? '' : 'none';
-    }
     var t = activeTab();
+    if (t && !t.view) restoreTabView(t); // waking a sleeping tab
+    for (var i = 0; i < tabs.length; i++) {
+      var v = tabs[i].view;
+      if (v) v.style.display = (tabs[i].id === id) ? '' : 'none';
+    }
     if (t) {
+      t.lastActiveAt = Date.now();
       urlText.textContent = t.url || '';
       urlPill.title = (t.url || '') + ' - click to copy (click the lock to type)';
       if (editMode) urlInput.value = t.url || '';
@@ -334,20 +431,11 @@
     updateTabsCount();
     updateBackForward(t);
     renderTabsList();
+    updateMemoryStatus(lastMemInfo);
   }
 
   function destroyTab(tab) {
-    try {
-      if (typeof tab.view.destroy === 'function') tab.view.destroy();
-      else if (tab.view.parentNode) tab.view.parentNode.removeChild(tab.view);
-    } catch (e) {
-      try { if (tab.view.parentNode) tab.view.parentNode.removeChild(tab.view); } catch (e2) {}
-    }
-    if (tab.webContentsId != null) {
-      urlByTab.delete(tab.webContentsId);
-      titleByTab.delete(tab.webContentsId);
-      anchorClicks.delete(tab.webContentsId);
-    }
+    destroyTabView(tab);
   }
 
   function closeTab(id) {
@@ -379,13 +467,18 @@
       var isActive = tab.id === activeTabId;
       var name = (tab.title || tab.url || 'Tab').trim();
       var initial = (hostOf(tab.url).replace(/^www\./, '') || 'T').charAt(0).toUpperCase();
+      var mem = tabMemMB(tab);
+      var memLabel = tab.sleeping ? 'sleeping' : (mem >= 50 ? Math.round(mem) + ' MB' : '');
       var item = document.createElement('div');
-      item.className = 'tab-item' + (isActive ? ' active' : '');
+      item.className = 'tab-item' + (isActive ? ' active' : '') + (tab.sleeping ? ' sleeping' : '');
       item.setAttribute('role', 'button');
+      item.setAttribute('data-tab', tab.id);
       item.innerHTML =
         '<div class="tab-favicon">' + escapeHtml(initial) + '</div>' +
         '<div class="tab-info">' +
-          '<div class="tab-title">' + escapeHtml(name) + '</div>' +
+          '<div class="tab-title">' + escapeHtml(name) +
+            '<span class="tab-mem">' + (memLabel ? ' · ' + escapeHtml(memLabel) : '') + '</span>' +
+          '</div>' +
           '<div class="tab-url" dir="ltr">' + escapeHtml(tab.url || '') + '</div>' +
         '</div>' +
         '<button class="tab-close" title="Close tab">X</button>';
@@ -400,6 +493,223 @@
       });
       tabsList.appendChild(item);
     })(tabs[i]);
+    scheduleSaveSession();
+  }
+
+  /* ================= Session restore =================
+     A renderer crash / reload used to lose every tab. The list (URL + title) and the
+     active index are saved to localStorage, and on boot only the active tab is
+     loaded — the rest come back asleep, so restoring is cheap. After a FORCED UI kill
+     the heavy page that drove the OOM is NEVER auto-woken: every tab restores asleep
+     and a fresh benign tab opens instead (no freeze loop). */
+  var SESSION_KEY = 'streamo.tabs.v1';
+  var sessionSaveTimer = null;
+
+  function saveSession() {
+    try {
+      var list = [];
+      var activeIndex = 0;
+      for (var i = 0; i < tabs.length; i++) {
+        var t = tabs[i];
+        var u = t.url || '';
+        if (!/^https?:\/\//i.test(u)) continue;
+        if (t.id === activeTabId) activeIndex = list.length;
+        list.push({ url: u, title: t.title || '' });
+      }
+      if (!list.length) return;
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ urls: list, activeIndex: activeIndex, ts: Date.now() }));
+    } catch (e) {}
+  }
+
+  function scheduleSaveSession() {
+    if (sessionSaveTimer) return;
+    sessionSaveTimer = window.setTimeout(function () {
+      sessionSaveTimer = null;
+      saveSession();
+    }, 900);
+  }
+
+  function readSession() {
+    try {
+      var raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return null;
+      var s = JSON.parse(raw);
+      if (!s || !Array.isArray(s.urls) || !s.urls.length) return null;
+      var list = s.urls.filter(function (x) { return x && /^https?:\/\//i.test(x.url || ''); }).slice(0, 30);
+      if (!list.length) return null;
+      return {
+        urls: list,
+        activeIndex: Math.max(0, Math.min(list.length - 1, Number(s.activeIndex) || 0))
+      };
+    } catch (e) { return null; }
+  }
+
+  function createSleepingTab(entry) {
+    tabSeq += 1;
+    var tab = {
+      id: 't' + tabSeq,
+      webContentsId: null,
+      url: entry.url || '',
+      title: entry.title || entry.url || 'New Tab',
+      view: null,
+      hostIntent: { etld: etld1(hostOf(entry.url || '')), freshTs: Date.now() },
+      lastActiveAt: 0,
+      sleeping: true,
+      lastReloadAt: 0,
+      crashCount: 0,
+      lastCrashAt: 0
+    };
+    tabs.push(tab);
+    return tab;
+  }
+
+  function restoreSession(allAsleep) {
+    var s = readSession();
+    if (!s) return false;
+    for (var i = 0; i < s.urls.length; i++) createSleepingTab(s.urls[i]);
+    if (allAsleep) {
+      // The heavy page that caused the crash stays asleep — open a fresh benign tab instead.
+      createTab('https://www.google.com/');
+      toast('Recovered after a crash - your tabs were restored asleep');
+      return true;
+    }
+    var active = tabs[Math.max(0, Math.min(tabs.length - 1, s.activeIndex))];
+    if (!active) return false;
+    activateTab(active.id); // wakes only this one; the rest stay asleep
+    if (tabs.length > 1) {
+      toast('Session restored - ' + tabs.length + ' tabs restored');
+    }
+    return true;
+  }
+
+  /* ================= Memory manager (side of the UI) ================= */
+
+  function tabMemMB(tab) {
+    if (!tab || tab.webContentsId == null) return 0;
+    return Number(memByWcId[tab.webContentsId]) || 0;
+  }
+
+  function isTabAudible(tab) {
+    try {
+      return !!(tab && tab.view && typeof tab.view.isCurrentlyAudible === 'function' && tab.view.isCurrentlyAudible());
+    } catch (e) { return false; }
+  }
+
+  /** Put a hidden tab to sleep: destroy its webview, keep URL/title, restore on click. */
+  function sleepTab(tab, notify) {
+    if (!tab || tab.id === activeTabId || !tab.view || tab.sleeping) return false;
+    if (isTabAudible(tab)) return false; // never cut off audio the user is listening to
+    var savedMB = tabMemMB(tab);
+    destroyTabView(tab);
+    if (notify && Date.now() - lastSleepToastAt > 60000) {
+      lastSleepToastAt = Date.now();
+      toast(savedMB >= 50 ? ('Tab asleep - ' + Math.round(savedMB) + ' MB saved') : 'Tab asleep - memory saved');
+    }
+    if (openSide === 'tabs') renderTabsList();
+    return true;
+  }
+
+  /** Sleeping under pressure: biggest + least-recently-used hidden tabs first. */
+  function sleepHiddenTabs(info, targetAppMB, includeRecent) {
+    var now = Date.now();
+    var candidates = [];
+    for (var i = 0; i < tabs.length; i++) {
+      var t = tabs[i];
+      if (t.id === activeTabId || !t.view || t.sleeping) continue;
+      if (isTabAudible(t)) continue;
+      var own = tabMemMB(t);
+      var idle = now - (t.lastActiveAt || now);
+      if (!includeRecent && idle < PRESSURE_IDLE_MS && own < 350) continue;
+      candidates.push({ tab: t, mb: own, idle: idle });
+    }
+    candidates.sort(function (a, b) { return (b.mb - a.mb) || (b.idle - a.idle); });
+    var estimate = Number(info.appMB) || 0;
+    for (var j = 0; j < candidates.length; j++) {
+      var c = candidates[j];
+      if (estimate <= targetAppMB && c.mb < 200) break;
+      if (sleepTab(c.tab, true)) {
+        estimate = Math.max(0, estimate - Math.max(c.mb, 120));
+        if (estimate <= targetAppMB) break;
+      }
+    }
+  }
+
+  function fmtMemMB(mb) {
+    mb = Number(mb) || 0;
+    return mb >= 1024 ? (mb / 1024).toFixed(1) + ' GB' : Math.round(mb) + ' MB';
+  }
+
+  function updateMemoryStatus(info) {
+    if (!info) return;
+    var el = document.getElementById('memStatus');
+    if (el) {
+      el.textContent = 'RAM ' + fmtMemMB(info.appMB) + '  ·  free ' + fmtMemMB(info.freeMB);
+      el.className = 'mem-status ' + (info.level || 'ok');
+      el.title = 'Streamo total ' + fmtMemMB(info.appMB) + ' / system free ' + fmtMemMB(info.freeMB) +
+        ' / total ' + fmtMemMB(info.totalMB);
+    }
+    if (openSide === 'tabs' && tabsList) {
+      for (var i = 0; i < tabs.length; i++) {
+        var t = tabs[i];
+        var item = tabsList.querySelector('.tab-item[data-tab="' + t.id + '"]');
+        if (!item) continue;
+        var memEl = item.querySelector('.tab-mem');
+        if (!memEl) continue;
+        var mem = tabMemMB(t);
+        memEl.textContent = t.sleeping ? ' · sleeping' : (mem >= 50 ? ' · ' + Math.round(mem) + ' MB' : '');
+      }
+    }
+  }
+
+  function memoryGovernor(info) {
+    if (!info) return;
+    memByWcId = {};
+    var list = (info.tabs || []);
+    for (var i = 0; i < list.length; i++) {
+      var rec = list[i];
+      if (rec && rec.wcId != null) memByWcId[rec.wcId] = Number(rec.mb) || 0;
+    }
+    lastMemInfo = info;
+    updateMemoryStatus(info);
+
+    // The internal player decodes/buffers inside this very renderer. Drop it first
+    // when the UI balloons, so the whole window never has to be killed.
+    var uiMB = Number(info.windowMB) || 0;
+    if (uiMB >= 800 && playerEl && playerEl.classList.contains('open')) {
+      closePlayer();
+      toast('Low RAM - player closed');
+    }
+
+    var level = info.level || 'ok';
+    var now = Date.now();
+
+    if (level === 'ok') {
+      // Proactive idle sleep: keeps a long browsing session from ever reaching pressure.
+      for (var j = 0; j < tabs.length; j++) {
+        var tab = tabs[j];
+        if (tab.id === activeTabId || !tab.view || tab.sleeping) continue;
+        if (now - (tab.lastActiveAt || now) > IDLE_SLEEP_MS) sleepTab(tab, false);
+      }
+      return;
+    }
+
+    var target = level === 'critical'
+      ? Math.round((info.warnMB || 1500) * 0.75)
+      : Math.round((info.warnMB || 1500) * 0.9);
+    sleepHiddenTabs(info, target, level === 'critical');
+
+    // The active tab itself can be the leak (single vkvideo embed). Reload it
+    // only when it is clearly huge, at most once every 30s.
+    var active = activeTab();
+    if (active && active.view) {
+      var activeMB = tabMemMB(active);
+      var activeLimit = level === 'critical' ? 650 : 950;
+      if (activeMB >= activeLimit && now - (active.lastReloadAt || 0) > 30000) {
+        active.lastReloadAt = now;
+        toast('Low RAM - reloading this tab');
+        try { active.view.reload(); } catch (e) {}
+      }
+    }
   }
 
   function updateTabsCount() {
@@ -433,6 +743,14 @@
     window.setTimeout(function () { if (div.parentNode) div.parentNode.removeChild(div); }, 280);
   }
 
+  /* Entry ids of every capture still in-flight — these keep their mini card until ok/fail. */
+  function pendingNotifIds() {
+    var ids = new Set();
+    pendingTests.forEach(function (p) { if (p && p.tmp && p.tmp.id) ids.add(p.tmp.id); });
+    return ids;
+  }
+
+  /** Hide finished cards on panel open — cards still loading stay until the result arrives. */
   function clearAllNotifs() {
     var nodes = notifStack.querySelectorAll('.notif');
     for (var i = 0; i < nodes.length; i++) flingNotif(nodes[i]);
@@ -465,10 +783,16 @@
       }, 140);
     });
     notifStack.appendChild(div);
-    // حد أقصى 5 كروت — أسقط الأقدم لما يدخل سادس
-    while (notifStack.children.length > 5) {
-      var first = notifStack.firstChild;
-      if (first) flingNotif(first);
+    // حد أقصى 5 كروت منتهية — مش بناخد الكروت اللسه بتتحمل، الكارت المحمل بيفضل لحد النتيجة
+    for (var guard = 0; guard < 40 && notifStack.children.length > 5; guard++) {
+      var pendingIds = pendingNotifIds();
+      var oldestSettled = null;
+      for (var ci = 0; ci < notifStack.children.length; ci++) {
+        var node = notifStack.children[ci];
+        if (!pendingIds.has(node.getAttribute('data-entry'))) { oldestSettled = node; break; }
+      }
+      if (oldestSettled) { flingNotif(oldestSettled); break; }
+      break; // كل الكروت لسه بتتحمل — سيبهم، عددهم محدود بطبيعة التقاطات الفيديو
     }
   }
 
@@ -552,18 +876,23 @@
   };
 
   function renderLinks(force) {
-    var sig = JSON.stringify(window.StreamoStore.getLinks());
+    var all = window.StreamoStore.getLinks();
+    var sig = JSON.stringify(all);
+    linksCount.textContent = String(all.length);
+    // Do not build hidden panel DOM on every captured link (300 cards churn CPU/RAM).
+    if (!force && openSide !== 'links') { linksSignature = sig; return; }
     if (!force && sig === linksSignature) return;
     linksSignature = sig;
     window.StreamoPanelUI.mountLinks(linksListContent, linkActions);
-    linksCount.textContent = String(window.StreamoStore.getLinks().length);
   }
   function renderSearch(force) {
-    var sig = JSON.stringify(window.StreamoStore.getSearch());
+    var all = window.StreamoStore.getSearch();
+    var sig = JSON.stringify(all);
+    searchCount.textContent = String(all.length);
+    if (!force && openSide !== 'search') { searchSignature = sig; return; }
     if (!force && sig === searchSignature) return;
     searchSignature = sig;
     window.StreamoPanelUI.mountSearch(searchListContent, searchActions);
-    searchCount.textContent = String(window.StreamoStore.getSearch().length);
   }
   function refreshSearchIfOpen() { if (openSide === 'search') renderSearch(true); }
 
@@ -622,6 +951,23 @@
     else if (openSide === 'search') renderSearch(false);
   }, 1500);
 
+  /* Housekeeping: these maps/sets served their purpose after a few seconds
+     but were never pruned — harmless in a short test, a slow leak all day. */
+  setInterval(function () {
+    var now = Date.now();
+    pendingTests.forEach(function (v, k) {
+      if (!v || !v.tmp || now - v.tmp.ts > 30000) pendingTests.delete(k);
+    });
+    anchorClicks.forEach(function (v, k) {
+      if (!v || now - v.ts > ANCHOR_INTENT_MS) anchorClicks.delete(k);
+    });
+    strikes.forEach(function (v, k) {
+      if (now - v > STRIKE_MS) strikes.delete(k);
+    });
+    if (lastTestAt.size > 600) lastTestAt.clear();
+    if (extractionLogged.size > 400) extractionLogged.clear();
+  }, 60000);
+
   /* comment */
   var editMode = false;
 
@@ -630,7 +976,7 @@
     urlPill.classList.toggle('editing', editMode);
     lockIconLocked.style.display = editMode ? 'none' : '';
     lockIconUnlocked.style.display = editMode ? '' : 'none';
-    btnCopyUrl.style.display = editMode ? 'none' : '';
+    btnHome.style.display = editMode ? 'none' : '';
     if (editMode) {
       var t = activeTab();
       urlInput.value = (t && t.url) || '';
@@ -678,7 +1024,7 @@
 
   urlPill.addEventListener('click', function (ev) {
     if (editMode) return; // editing inside the address bar
-    if (ev.target && (ev.target === urlLock || urlLock.contains(ev.target) || ev.target === urlReload || urlReload.contains(ev.target))) return;
+    if (ev.target && (ev.target === urlLock || urlLock.contains(ev.target) || ev.target === urlReload || urlReload.contains(ev.target) || ev.target === btnHome || btnHome.contains(ev.target))) return;
     copyUrlToClipboard();
   });
   urlLock.addEventListener('click', function (ev) {
@@ -702,7 +1048,13 @@
       if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); this.click(); }
     });
   }
-  btnCopyUrl.addEventListener('click', function (ev) { ev.stopPropagation(); copyUrlToClipboard(); });
+  if (btnHome) {
+    btnHome.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      var t = activeTab();
+      if (t) hostNavigate(t, 'https://www.google.com/'); // same-tab Go home
+    });
+  }
   btnUrlGo.addEventListener('click', function (ev) { ev.stopPropagation(); commitUrlEdit(); });
   urlInput.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); commitUrlEdit(); }
@@ -786,6 +1138,15 @@
   });
 
   /* ================= Link capture from main ================= */
+  /* A movie's capture fires many times per second; testing every repeat with the full
+     HLS chain each time made captures wait forever. We test once per movie per 60s —
+     the result (and the merged entry) is good enough for everything else that arrives
+     in between. */
+  var PROBE_CACHE_MS = 60 * 1000;
+  var recentProbeAt = new Map();
+  function movieKeyOf(u) {
+    try { var k = window.StreamoStore.movieKeyFor; return k ? k(String(u || '')) : ''; } catch (e) { return ''; }
+  }
 
   if (window.streamoBridge.onLinkFound) {
     window.streamoBridge.onLinkFound(function (payload) {
@@ -812,15 +1173,39 @@
       };
       pendingTests.set(url, { tmp: tmpEntry, pageUrl: pageUrl });
       lastTestAt.set(url, now);
+      if (pendingTests.size > 80) {
+        var oldestPending = pendingTests.keys().next();
+        if (!oldestPending.done) pendingTests.delete(oldestPending.value);
+      }
+      if (lastTestAt.size > 600) lastTestAt.clear();
+
+      // One card per movie per 2-minute window — a capture burst shows ONE card;
+      // same-movie followups stay silent. New movies always get their card.
+      var movieKey = '';
+      try { var keyOf = window.StreamoStore.movieKeyFor; if (keyOf) movieKey = keyOf(url) || ''; } catch (e) {}
+      var suppressCard = false;
+      if (movieKey) {
+        var sinceLast = now - (movieNotifyAt.get(movieKey) || 0);
+        if (sinceLast < MOVIE_NOTIFY_WINDOW_MS) suppressCard = true;
+        else {
+          movieNotifyAt.set(movieKey, now);
+          if (movieNotifyAt.size > 1500) {
+            // keep the map bounded — drop entries older than the window
+            var cutoff = now - MOVIE_NOTIFY_WINDOW_MS;
+            movieNotifyAt.forEach(function (ts, k) { if (ts < cutoff) movieNotifyAt.delete(k); });
+          }
+        }
+      }
 
       // comment
-      addMiniCard(tmpEntry);
+      if (!suppressCard) addMiniCard(tmpEntry);
 
       // comment
       runLinkTest(url, pageUrl);
 
       // comment
       if (pageUrl && !extractionLogged.has(pageUrl)) {
+        if (extractionLogged.size > 400) extractionLogged.clear();
         extractionLogged.add(pageUrl);
         window.StreamoStore.addSearch(pageUrl, pageUrl, 'Capture');
         refreshSearchIfOpen();
@@ -840,8 +1225,10 @@
 
     if (ok) {
       // comment
-      var res = window.StreamoStore.addLink(url, pending ? (pending.pageUrl || '') : '');
-      window.StreamoStore.updateLinkByUrl(url, {
+      var res = window.StreamoStore.addLink(url, pending ? (pending.pageUrl || '') : '', { isMaster: r.isMaster === true });
+      var entry = res && res.entry ? res.entry : null;
+      var targetId = entry ? entry.id : null;
+      var patch = {
         status: 'ok',
         type: r.type || 'unknown',
         size: (r.size === undefined ? null : r.size),
@@ -850,30 +1237,56 @@
         duration: (r.duration === undefined ? null : r.duration),
         via: (r.via === undefined ? null : r.via),
         finalUrl: (r.finalUrl === undefined ? null : r.finalUrl),
-        error: (r.error === undefined ? null : r.error)
-      });
-      if (entryId) updateMiniCard(entryId, true);
+        error: (r.error === undefined ? null : r.error),
+        isMaster: r.isMaster === true || (entry && entry.isMaster === true),
+        probeV: 2
+      };
+      if (targetId) window.StreamoStore.updateLink(targetId, patch);
+      // A merged duplicate is not a "new link" — let its card vanish quietly instead of flashing "Link captured"
+      var mergedDup = !!(res && res.merged);
+      if (mergedDup) {
+        if (entryId) {
+          var dupCard = notifStack.querySelector('.notif[data-entry="' + entryId + '"]');
+          if (dupCard) flingNotif(dupCard);
+        }
+      } else {
+        if (entryId) updateMiniCard(entryId, true);
+      }
       refreshLinkBadge();
-      renderLinks(true);
+      renderLinks(false);
       return;
     }
 
     // comment
     try { window.StreamoStore.removeLinkByUrl(url); } catch (e) {}
     if (entryId) updateMiniCard(entryId, false);
-    renderLinks(true);
+    renderLinks(false);
   }
 
   function runLinkTest(url, pageUrl) {
+    var movieKey = movieKeyOf(url);
+    if (movieKey) {
+      var last = recentProbeAt.get(movieKey) || 0;
+      if (Date.now() - last < PROBE_CACHE_MS) {
+        // Same movie tested moments ago — the stored/merged entry carries fresh data
+        return Promise.resolve();
+      }
+      recentProbeAt.set(movieKey, Date.now());
+      if (recentProbeAt.size > 200) {
+        var cutoff = Date.now() - PROBE_CACHE_MS;
+        recentProbeAt.forEach(function (ts, k) { if (ts < cutoff) recentProbeAt.delete(k); });
+      }
+    }
     try {
       if (window.streamoBridge.testLink) {
-        window.streamoBridge.testLink(url, pageUrl || '').then(applyTestResult, function () {
+        var p = window.streamoBridge.testLink(url, pageUrl || '').then(applyTestResult, function () {
           applyTestResult({ url: url, status: 'fail', error: 'NETWORK' });
         });
-        return;
+        return p;
       }
     } catch (e) {}
     applyTestResult({ url: url, status: 'fail', error: 'NO_BRIDGE' });
+    return Promise.resolve();
   }
 
   /* New windows policy: same-domain -> new tab, blocked otherwise. */
@@ -907,7 +1320,9 @@
     });
   }
 
-  /* A guest tab process died (crash) — recreate the tab at its current URL بدل ما يفضل ميت */
+  /* A guest tab process died (crash) — revive the same tab in place instead of
+     opening a duplicate every time. After 3 crashes in 2 minutes we leave it
+     asleep and let the user click it to retry (stops crash/oom loops). */
   if (window.streamoBridge.onGuestGone) {
     window.streamoBridge.onGuestGone(function (payload) {
       try {
@@ -917,15 +1332,34 @@
         for (var i = 0; i < tabs.length; i++) {
           if (tabs[i].webContentsId === wcId) { tab = tabs[i]; break; }
         }
-        if (!tab) return;
-        var url = tab.url || 'https://www.google.com/';
+        if (!tab || tab.sleeping) return;
+        var wasActive = tab.id === activeTabId;
+        var now = Date.now();
+        if (!tab.lastCrashAt || now - tab.lastCrashAt > 120000) tab.crashCount = 0;
+        tab.crashCount = (tab.crashCount || 0) + 1;
+        tab.lastCrashAt = now;
         var reason = (payload && payload.reason) || 'crash';
-        console.log('[tab-gone] tab crashed reason=' + reason + ' — recreating at', url);
-        toast('A tab crashed - reloading it');
-        var nt = createTab(url);   // تصبح آخر تاب ونشطة
-        try { destroyTab(tab); } catch (e) {}
-        activateTab(nt.id);
+        console.log('[tab-gone] tab crashed reason=' + reason + ' count=' + tab.crashCount);
+        destroyTabView(tab);
+        if (wasActive && tab.crashCount <= 3) {
+          toast('A tab crashed - reloading it');
+          activateTab(tab.id);
+        } else if (wasActive) {
+          toast('Tab crashed 3 times - click it to retry');
+          updateUrlPill(tab);
+          updateBackForward(tab);
+          renderTabsList();
+        } else {
+          renderTabsList();
+        }
       } catch (e) { console.error('[tab-gone] handler failed', e); }
+    });
+  }
+
+  /* Live memory report from the main process — sleep hidden tabs before the OS freezes. */
+  if (window.streamoBridge.onMemory) {
+    window.streamoBridge.onMemory(function (info) {
+      try { memoryGovernor(info); } catch (e) { console.error('[memory] governor failed', e); }
     });
   }
 
@@ -1005,7 +1439,7 @@
     iconPause.style.display = playing ? '' : 'none';
   }
   function isManifest(url) {
-    return /\.m3u8(\?|#|$)|\.mpd(\?|#|$)/i.test(url || '');
+    return /\.m3u8(\?|#|$)/i.test(url || ''); // DASH is never offered (downloads, not streaming)
   }
   function setPlayerLoading(on) { playerEl.classList.toggle('loading', !!on); }
   function setPlayerError(on) { playerEl.classList.toggle('error', !!on); }
@@ -1104,18 +1538,94 @@
 
   /* ===== Lifecycle ===== */
   var currentPlayerPage = '';
+  var playerAbort = null;
+  var playerGeneration = 0;
+  var mediaProxy = null;
+
+  /** Normal HTTP URL on the loopback proxy (port + token from the main process). */
+  function mediaProxyUrl(target, withCap) {
+    if (!mediaProxy || !mediaProxy.port) return null;
+    var r = '';
+    try { r = currentPlayerPage ? new URL(currentPlayerPage).origin + '/' : ''; } catch (e) { r = ''; }
+    return 'http://127.0.0.1:' + mediaProxy.port + '/p/' + mediaProxy.token +
+      '?u=' + encodeURIComponent(String(target || '')) +
+      (r ? '&r=' + encodeURIComponent(r) : '') +
+      (withCap ? '&cap=1' : '');
+  }
+  function destroyShaka() {
+    if (!shakaPlayer) return;
+    try { shakaPlayer.destroy(); } catch (e) {}
+    shakaPlayer = null;
+  }
+
+  function abortPlayerNetwork() {
+    if (!playerAbort) return;
+    try { playerAbort.abort(); } catch (e) {}
+    playerAbort = null;
+  }
 
   function proxiedUrl(url) {
+    // MP4 fallback: <video> plays cross-origin without CORS; the loopback proxy is preferred (Referer attached)
+    var local = mediaProxyUrl(url, false);
+    if (local) return local;
+    return String(url || '');
+  }
+
+  /* ===== Load watchdog =====
+     An HLS link on a very slow CDN still delivers bytes — that is not an error.
+     The watchdog only fires when NOTHING moves for 45 seconds, or when the
+     absolute ceiling of 2 minutes passes, or when readyState reaches 3. */
+  var loadWatch = { timer: null, lastProgressAt: 0, lastBytes: -1, openedAt: 0 };
+  var playerLoadSub = null;
+
+  function loadProgressBytes() {
     try {
-      var r = '';
-      if (currentPlayerPage) {
-        try { r = new URL(currentPlayerPage).origin + '/'; } catch (e) { r = ''; }
+      if (!shakaPlayer) return -1;
+      var st = shakaPlayer.getStats ? shakaPlayer.getStats() : null;
+      var b = Number(st && st.bytesDownloaded);
+      return isFinite(b) ? b : -1;
+    } catch (e) { return -1; }
+  }
+  function clearLoadWatch() {
+    if (loadWatch.timer) { try { window.clearInterval(loadWatch.timer); } catch (e) {} }
+    loadWatch.timer = null;
+  }
+  function updateLoadSub() {
+    if (!playerLoadSub) { try { playerLoadSub = document.getElementById('playerLoadSub'); } catch (e) {} }
+    if (!playerLoadSub) return;
+    var b = loadProgressBytes();
+    if (b < 0) { playerLoadSub.textContent = 'Buffering the stream'; return; }
+    playerLoadSub.textContent = 'Downloaded ' + (b / 1048576).toFixed(1) + ' MB';
+  }
+  function startLoadWatch(gen, onSettledOk, onSettledErr) {
+    clearLoadWatch();
+    loadWatch.lastProgressAt = Date.now();
+    loadWatch.lastBytes = Math.max(0, loadProgressBytes());
+    loadWatch.openedAt = Date.now();
+    loadWatch.timer = window.setInterval(function () {
+      if (gen !== playerGeneration) { clearLoadWatch(); return; }
+      if (playerVideo.readyState >= 3) { onSettledOk(); return; }
+      var b = loadProgressBytes();
+      if (b >= 0 && b > loadWatch.lastBytes) {
+        loadWatch.lastBytes = b;
+        loadWatch.lastProgressAt = Date.now();
+        updateLoadSub();
+        return;
       }
-      return 'streamo-media://proxy/?u=' + encodeURIComponent(String(url || '')) + (r ? '&r=' + encodeURIComponent(r) : '');
-    } catch (e) { return url; }
+      var now = Date.now();
+      if (now - loadWatch.lastProgressAt > 45000) { onSettledErr(); return; }  // no bytes for 45s
+      if (now - loadWatch.openedAt > 120000) { onSettledErr(); }              // absolute 2-minute ceiling
+    }, 1000);
   }
 
   function openPlayer(url, pageUrl) {
+    // A Retry press used to build a second shaka.Player on the same <video>
+    // without destroying the first one — every retry kept a full buffer alive.
+    destroyShaka();
+    abortPlayerNetwork();
+    var gen = ++playerGeneration;
+    try { playerAbort = new AbortController(); } catch (e) { playerAbort = null; }
+
     currentPlayerPage = pageUrl || '';
     currentPlayerUrl = url || '';
     playerTitle.textContent = url || '';
@@ -1124,6 +1634,7 @@
     playerEl.classList.remove('controls-hidden');
     setPlayerError(false);
     setPlayerLoading(true);
+    try { playerLoadSub = document.getElementById('playerLoadSub'); if (playerLoadSub) playerLoadSub.textContent = 'Buffering the stream'; } catch (e) {}
     playerVideo.pause();
     playerVideo.removeAttribute('src');
     playerVideo.load();
@@ -1131,11 +1642,39 @@
     syncSeekPosition(0);
 
     var settled = false;
-    var hardTimeout = window.setTimeout(function () {
-      if (!settled) { settled = true; setPlayerLoading(false); setPlayerError(true); }
-    }, 10000);
-    function settleOk() { if (settled) return; settled = true; window.clearTimeout(hardTimeout); setPlayerLoading(false); }
-    function settleErr() { if (settled) return; settled = true; window.clearTimeout(hardTimeout); setPlayerLoading(false); setPlayerError(true); }
+    // The watchdog (below) decides failure; an HLS master on a slow CDN can take
+    // minutes to fill the buffer and that is still a healthy load.
+    function settleOk() {
+      if (gen !== playerGeneration) return;
+      if (settled) return;
+      settled = true;
+      clearLoadWatch();
+      setPlayerLoading(false);
+      setPlayerError(false);
+      // Data is in the buffer — a play() issued at src-set time may have been
+      // interrupted before the pipeline was ready; retry now (user can still tap to toggle).
+      try { playerVideo.play().catch(function () {}); } catch (e) {}
+    }
+    function settleErr() {
+      if (gen !== playerGeneration) return; // a newer open/close owns the player now
+      // A late failure must never cover a stream that already plays.
+      if (playerVideo.readyState >= 3 && !playerVideo.paused && playerVideo.currentTime > 0) {
+        settled = true;
+        clearLoadWatch();
+        setPlayerLoading(false);
+        setPlayerError(false);
+        return;
+      }
+      settled = true;
+      clearLoadWatch();
+      setPlayerLoading(false);
+      setPlayerError(true);
+      playerEl.classList.remove('controls-hidden'); // keep Close reachable
+      // Kill the media pipeline COMPLETELY — no audio behind the error screen
+      try { playerVideo.pause(); playerVideo.removeAttribute('src'); playerVideo.load(); } catch (e) {}
+      destroyShaka();          // release every buffered segment now
+      abortPlayerNetwork();
+    }
 
     playerVideo.volume = 1;
 
@@ -1144,51 +1683,95 @@
         shakaPlayer = new shaka.Player();
         try {
           shakaPlayer.configure({
-            streaming: { bufferingGoal: 20, rebufferingGoal: 2, bufferBehind: 30, jumpLargeGaps: true }
+            streaming: { bufferingGoal: 8, rebufferingGoal: 2, bufferBehind: 10 },
+            abr: { restrictions: { maxHeight: 1080 } }
           });
         } catch (e) {}
-        try {
-          var net = shakaPlayer.getNetworkingEngine && shakaPlayer.getNetworkingEngine();
-          if (net && net.registerRequestFilter) {
-            net.registerRequestFilter(function (type, request) {
-              try {
-                var uri = request.uris && request.uris[0];
-                if (uri && /^https?:\/\//i.test(uri)) request.uris[0] = proxiedUrl(uri);
-              } catch (e) {}
-            });
-          }
-        } catch (e) {}
+
+        // Every manifest AND segment request goes through the local HTTP proxy:
+        // same-site Referer/Origin, Range forwarded, CORS allowed, byte-capped.
+        function proxyFor(uri) {
+          var local = mediaProxyUrl(uri, true);
+          if (local) return local;
+          return null; // proxy unavailable — the filter leaves the URI alone (direct fetch attempt)
+        }
         shakaPlayer.attach(playerVideo).then(function () {
+          // getNetworkingEngine() is null before attach(), so the filter must be
+          // registered here — otherwise shaka fetches the CDN directly, CORS fails
+          // and the player sits on "Loading" forever.
+          try {
+            var net = shakaPlayer.getNetworkingEngine();
+            if (net) {
+              net.registerRequestFilter(function (type, request) {
+                try {
+                  var list = (request && request.uris) || [];
+                  var out = [];
+                  for (var i = 0; i < list.length; i++) {
+                    var uri = list[i];
+                    var alreadyProxied = mediaProxy && mediaProxy.port &&
+                      uri.indexOf('http://127.0.0.1:' + mediaProxy.port + '/p/') === 0;
+                    if (alreadyProxied) { out.push(uri); continue; }
+                    if (/^https?:\/\//i.test(uri)) {
+                      var proxied = proxyFor(uri);
+                      out.push(proxied || uri);
+                    } else {
+                      out.push(uri);
+                    }
+                  }
+                  if (out.length) request.uris = out;
+                } catch (e) {}
+              });
+            }
+          } catch (e) {}
           return shakaPlayer.load(url);
         }).then(function () {
           settleOk();
           playerVideo.play().catch(function () {});
-        }).catch(function (e) {
-          try { console.log('[player] shaka error', e && e.code, e && e.category, e && e.message); } catch (e2) {}
+        }).catch(function () {
           settleErr();
         });
-        shakaPlayer.addEventListener('error', function (ev) {
-          try { var d = ev && ev.detail ? ev.detail : null; console.log('[player] shaka error', d && d.code, d && d.category, d && d.message); } catch (e2) {}
+        shakaPlayer.addEventListener('error', function () {
           settleErr();
         });
       } catch (e) {
-        playerVideo.src = url;
-        playerVideo.play().catch(settleErr);
+        playerVideo.src = proxiedUrl(url);
+        playerVideo.addEventListener('loadedmetadata', settleOk, { once: true });
+        playerVideo.addEventListener('canplay', settleOk, { once: true });
+        playerVideo.addEventListener('error', settleErr, { once: true });
+        playerVideo.play().catch(function () {});
       }
     } else {
       playerVideo.src = proxiedUrl(url);
-      playerVideo.play().catch(settleErr);
       playerVideo.addEventListener('loadedmetadata', settleOk, { once: true });
       playerVideo.addEventListener('canplay', settleOk, { once: true });
       playerVideo.addEventListener('error', settleErr, { once: true });
+      playerVideo.play().catch(function () {});
     }
+    startLoadWatch(gen, settleOk, settleErr);
     setPlayIcon(true);
   }
 
+  /* Playback can start long after the request: clear the overlay whenever it does. */
+  playerVideo.addEventListener('playing', function () {
+    setPlayerLoading(false);
+    setPlayerError(false);
+  });
+  playerVideo.addEventListener('canplay', function () {
+    setPlayerLoading(false);
+  });
+  /* Any byte arriving at the <video> element is proof of life for the load watchdog
+     (covers the MP4 path where shaka stats are unavailable). */
+  playerVideo.addEventListener('progress', function () {
+    if (loadWatch.timer) { loadWatch.lastProgressAt = Date.now(); updateLoadSub(); }
+  });
+
   function closePlayer() {
     try {
+      playerGeneration++; // invalidate every pending settle/timeout of the old stream
+      clearLoadWatch();
       playerVideo.pause();
-      if (shakaPlayer) { try { shakaPlayer.destroy(); } catch (e) {} shakaPlayer = null; }
+      destroyShaka();
+      abortPlayerNetwork();
       playerVideo.removeAttribute('src');
       playerVideo.load();
       playerEl.classList.remove('open');
@@ -1197,6 +1780,8 @@
       playerEl.classList.remove('controls-hidden');
       setPlayIcon(false);
       if (controlsTimer) { window.clearTimeout(controlsTimer); controlsTimer = null; }
+      // The heavy media is gone; let the main process drop the Chromium media cache now
+      try { if (window.streamoBridge && window.streamoBridge.notifyPlayerClosed) window.streamoBridge.notifyPlayerClosed(); } catch (e) {}
     } catch (e) {}
   }
 
@@ -1242,8 +1827,10 @@
     var target = playerEl.requestFullscreen ? playerEl : (document.documentElement.requestFullscreen ? document.documentElement : null);
     if (target && target.requestFullscreen) target.requestFullscreen().catch(function () {});
   });
-  if (playerRetry) playerRetry.addEventListener('click', function () { if (currentPlayerUrl) openPlayer(currentPlayerUrl); });
+  if (playerRetry) playerRetry.addEventListener('click', function () { if (currentPlayerUrl) openPlayer(currentPlayerUrl, currentPlayerPage); });
   if (playerClose) playerClose.addEventListener('click', closePlayer);
+  var playerErrorBack = document.getElementById('playerErrorBack');
+  if (playerErrorBack) playerErrorBack.addEventListener('click', closePlayer);
 
   function flashTap(kind) {
     if (!playerTapFlash || !tapFlashIcon) return;
@@ -1260,7 +1847,7 @@
   /* comment */
   playerStage.addEventListener('click', function (e) {
     // comment
-    if (e.target.closest('.progress') || e.target.closest('.player-bottom') || e.target.closest('.player-top')) return;
+    if (e.target.closest('.progress') || e.target.closest('.player-bottom') || e.target.closest('.player-top') || e.target.closest('.player-error') || e.target.closest('.player-loading')) return;
     var rect = playerStage.getBoundingClientRect();
     var x = (e.clientX - rect.left) / Math.max(1, rect.width);
     var y = (e.clientY - rect.top) / Math.max(1, rect.height);
@@ -1281,7 +1868,7 @@
     }
   });
   playerStage.addEventListener('dblclick', function (e) {
-    if (e.target.closest('.progress') || e.target.closest('.player-bottom') || e.target.closest('.player-top')) return;
+    if (e.target.closest('.progress') || e.target.closest('.player-bottom') || e.target.closest('.player-top') || e.target.closest('.player-error') || e.target.closest('.player-loading')) return;
     if (playerFullscreenBtn) playerFullscreenBtn.click();
   });
 
@@ -1320,7 +1907,82 @@
   });
 
   /* ================= Boot ================= */
-  createTab('https://www.google.com/');
-  renderLinks(true);
+  /* Local automation/debug hook — drives the player from CDP during memory debugging. */
+  try {
+    window.__streamoDebug = {
+      openPlayer: function (url, pageUrl) { openPlayer(url, pageUrl || ''); },
+      closePlayer: closePlayer,
+      links: function () { return window.StreamoStore.getLinks(); },
+      tabs: function () { return tabs.map(function (t) { return { id: t.id, url: t.url, sleeping: !!t.sleeping, wc: t.webContentsId }; }); },
+      mem: function () { return lastMemInfo; },
+      player: function () {
+        var buf = [];
+        try { for (var i = 0; i < playerVideo.buffered.length; i++) buf.push([playerVideo.buffered.start(i), playerVideo.buffered.end(i)]); } catch (e) {}
+        var stats = null;
+        try { stats = shakaPlayer ? shakaPlayer.getStats() : null; } catch (e) {}
+        return {
+          open: playerEl.classList.contains('open'),
+          error: playerEl.classList.contains('error'),
+          loading: playerEl.classList.contains('loading'),
+          url: currentPlayerUrl,
+          time: playerVideo.currentTime,
+          duration: playerVideo.duration,
+          buffered: buf,
+          shaka: !!shakaPlayer,
+          stats: stats,
+          ready: playerVideo.readyState,
+          network: playerVideo.networkState,
+          mediaError: playerVideo.error ? playerVideo.error.code : null,
+          currentSrc: String(playerVideo.currentSrc || '').slice(0, 120)
+        };
+      },
+      mediaProxy: function () { return mediaProxy; }
+    };
+  } catch (e) {}
+
+  /* Restore the previous session. consumeCrashFlag() returns true exactly once —
+     after a forced UI kill every tab boots asleep and a fresh tab opens, so the
+     OOM page is never re-loaded into a freeze loop. */
+  function bootSession(crashed) {
+    if (!restoreSession(!!crashed)) createTab('https://www.google.com/');
+  }
+  try {
+    if (window.streamoBridge.getMediaProxy) {
+      window.streamoBridge.getMediaProxy().then(function (info) {
+        if (info && info.port) mediaProxy = info;
+      }).catch(function () {});
+    }
+  } catch (e) {}
+  if (window.streamoBridge.consumeCrashFlag) {
+    try {
+      window.streamoBridge.consumeCrashFlag().then(function (crashed) {
+        bootSession(crashed === true);
+      }, function () { bootSession(false); });
+    } catch (e) { bootSession(false); }
+  } else {
+    bootSession(false);
+  }
+  window.addEventListener('beforeunload', saveSession);
+  setInterval(saveSession, 5000);
+  /* The main process asks for a final synchronous flush on quit (before-quit). */
+  try {
+    if (window.streamoBridge.onFlushSession) {
+      window.streamoBridge.onFlushSession(function () { saveSession(); });
+    }
+  } catch (e) {}
+  renderLinks(false);
   refreshLinkBadge();
+  /* One-time migration: links stored by older builds were probed with a weaker check.
+     Re-test them one at a time (the CDN is slow) — anything that fails the deep media
+     check (e.g. disguised-ad playlists composed of CDN images) is removed entirely,
+     and same-movie duplicates merge keeping the best (master) entry. */
+  try {
+    var staleLinks = window.StreamoStore.getLinks().filter(function (l) {
+      return l && l.status === 'ok' && l.probeV !== 2;
+    });
+    var chain = Promise.resolve();
+    staleLinks.forEach(function (l) {
+      chain = chain.then(function () { return runLinkTest(l.url, l.pageUrl || ''); });
+    });
+  } catch (e) {}
 })();
