@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 Regenerates every Streamo icon from the single master SVG (app_icon.svg):
   Android  : adaptive-icon foreground/monochrome, splash icon, mask preview
@@ -21,9 +21,9 @@ WIN_ROOT = os.path.dirname(os.path.dirname(ROOT)) + os.sep + "streamo_win"
 
 # The design is a white tile, so the foreground is a full opaque white square with the
 # artwork inside the guaranteed-visible 66dp safe zone of the 108dp adaptive viewport
-# (radius 144 viewBox units; safe zone = 88). Any launcher mask — circle, squircle,
-# teardrop, Realme/Pixel — keeps every pixel of the artwork visible.
-ARTWORK_TARGET_RADIUS = 72
+# (radius 144 viewBox units; safe zone = 88). Any launcher mask â€” circle, squircle,
+# teardrop, Realme/Pixel â€” keeps every pixel of the artwork visible.
+ARTWORK_TARGET_RADIUS = 56
 SPLASH_TARGET_RADIUS = 72
 RASTER_SIZES = {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}
 
