@@ -177,13 +177,16 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app),
             getApplication<Application>().assets.open("hook.js").bufferedReader().use { it.readText() }
         } catch (e: Exception) { "" }
 
-        store.sanitizeLinks()
-        store.sanitizeSearchLog()
+        // one-time data migration — run off the main thread so the first frame renders immediately
+        viewModelScope.launch(Dispatchers.IO) {
+            store.sanitizeLinks()
+            store.sanitizeSearchLog()
+            emitLinks()
+            emitSearches()
+            refreshLinkBadge()
+        }
 
         _badgeSeen.value = store.badgeSeen()
-        emitLinks()
-        emitSearches()
-        refreshLinkBadge()
 
         val crashed = store.consumeCrashFlag()
         val restored = restoreSession(allAsleep = crashed)
@@ -311,11 +314,12 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app),
         createTab(HOME_URL)
     }
 
-    fun goBack() {
-        // If the player is open it takes precedence — handled by the UI layer instead.
-        activeTab()?.let { tab ->
-            webViews[tab.id]?.let { if (it.canGoBack()) it.goBack() }
-        }
+    /** Back one step in the active tab's history. Returns false when there is no history. */
+    fun goBack(): Boolean {
+        val tab = activeTab() ?: return false
+        return webViews[tab.id]?.let {
+            if (it.canGoBack()) { it.goBack(); true } else false
+        } ?: false
     }
 
     fun goForward() {
@@ -380,6 +384,23 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app),
 
     private fun etldOf(url: String?): String = Urls.etld1(Urls.hostOf(url ?: ""))
 
+    /** True when the active tab is on the app's home page (Google root). */
+    fun isAtHome(): Boolean {
+        val url = activeTab()?.url ?: return true
+        return try {
+            val u = java.net.URI(url)
+            val host = (u.host ?: "").lowercase().removePrefix("www.")
+            host in setOf("google.com", "google.com.eg") && (u.path.isNullOrEmpty() || u.path == "/")
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /** Navigate the active tab to the home page. */
+    fun goHome() {
+        activeTab()?.let { hostNavigate(it, HOME_URL) }
+    }
+
     private fun isAdDestination(url: String): Boolean =
         Defense.decide(url, isMainFrame = true, pageUrl = null) == Defense.Verdict.FAIL
 
@@ -436,13 +457,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app),
     }
 
     override fun decideNavigation(tabId: Long, destUrl: String, kind: String): StreamoWebViewClient.NavVerdict {
-        val verdict = decideFor(tabId, destUrl, kind)
-        if (verdict == StreamoWebViewClient.NavVerdict.BLOCK) {
-            toast("Blocked - redirect to a different site was stopped")
-        } else if (verdict == StreamoWebViewClient.NavVerdict.STRIKE) {
-            toast("Blocked - click again to continue")
-        }
-        return verdict
+        return decideFor(tabId, destUrl, kind)
     }
 
     /* ================= WebViewClient callbacks ================= */

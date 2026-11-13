@@ -193,14 +193,21 @@ object StreamoIcons {
         }
     }
 
-    val FailX: ImageVector = strokeIcon("FailX") {
-        path(fill = null, stroke = SolidColor(StreamoColors.FailBadge), strokeLineWidth = 2.4f, strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round) {
+    val CheckWhite: ImageVector = strokeIcon("CheckWhite") {
+        path(fill = null, stroke = SolidColor(Color.White), strokeLineWidth = 2.4f, strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round, strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round) {
+            moveTo(5.5f, 12.5f); lineTo(10f, 17f); lineTo(18.5f, 7f)
+        }
+    }
+
+    val ClearWhite: ImageVector = strokeIcon("ClearWhite") {
+        path(fill = null, stroke = SolidColor(Color.White), strokeLineWidth = 2.4f, strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round) {
             moveTo(7f, 7f); lineTo(17f, 17f)
         }
-        path(fill = null, stroke = SolidColor(StreamoColors.FailBadge), strokeLineWidth = 2.4f, strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round) {
+        path(fill = null, stroke = SolidColor(Color.White), strokeLineWidth = 2.4f, strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round) {
             moveTo(17f, 7f); lineTo(7f, 17f)
         }
     }
+
 
     /** GitHub octocat — the same mark used in the Windows credit footer. */
     val GitHub: ImageVector = strokeIcon("GitHub", viewport = 24f) {

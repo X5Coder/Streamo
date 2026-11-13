@@ -20,6 +20,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,9 +57,27 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
         }
     }
 
-    BackHandler(enabled = player != null) { viewModel.closePlayer() }
-    BackHandler(enabled = panel != null) { viewModel.closePanel() }
-    BackHandler(enabled = menuOpen) { viewModel.closeMenu() }
+    var lastBackAt by remember { mutableStateOf(0L) }
+    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+
+    BackHandler(enabled = true) {
+        when {
+            player != null -> viewModel.closePlayer()
+            panel != null -> viewModel.closePanel()
+            menuOpen -> viewModel.closeMenu()
+            viewModel.goBack() -> Unit
+            !viewModel.isAtHome() -> viewModel.goHome()
+            else -> {
+                val now = System.currentTimeMillis()
+                if (now - lastBackAt < 2000L) {
+                    activity?.finish()
+                } else {
+                    lastBackAt = now
+                    viewModel.toast("Press again to exit")
+                }
+            }
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(StreamoColors.Bg)) {
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {

@@ -144,16 +144,16 @@ private fun NotifCard(
                     modifier = Modifier.size(15.dp),
                 )
                 Notif.NotifState.OK -> Box(
-                    modifier = Modifier.size(26.dp).clip(CircleShape).background(StreamoColors.OkRing).border(1.dp, Color(0x594ADE80), CircleShape),
+                    modifier = Modifier.size(26.dp).clip(CircleShape).background(StreamoColors.OkBadge),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(StreamoIcons.Check, contentDescription = "Captured", modifier = Modifier.size(16.dp))
+                    Icon(StreamoIcons.CheckWhite, contentDescription = "Captured", tint = Color.White, modifier = Modifier.size(16.dp))
                 }
                 Notif.NotifState.FAILED -> Box(
-                    modifier = Modifier.size(26.dp).clip(CircleShape).background(StreamoColors.FailRing).border(1.dp, Color(0x59F87171), CircleShape),
+                    modifier = Modifier.size(26.dp).clip(CircleShape).background(StreamoColors.FailBadge),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(StreamoIcons.FailX, contentDescription = "Failed", modifier = Modifier.size(15.dp))
+                    Icon(StreamoIcons.ClearWhite, contentDescription = "Failed", tint = Color.White, modifier = Modifier.size(15.dp))
                 }
             }
         }
