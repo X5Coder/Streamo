@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.streamo.link.android.state.BrowserViewModel
 import com.streamo.link.android.ui.BrowserScreen
 import com.streamo.link.android.ui.StreamoTheme
@@ -18,6 +19,9 @@ class MainActivity : ComponentActivity() {
     private val viewModel: BrowserViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Must be called before super.onCreate — draws the branded splash the instant
+        // the tap is registered and keeps it until the first frame is ready.
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {

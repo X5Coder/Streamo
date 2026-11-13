@@ -154,6 +154,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app),
     private val lastTestAt = ConcurrentHashMap<String, Long>()
     private val pendingTests = ConcurrentHashMap<String, String>() // url -> tmp notif id
     private val pendingPageUrl = ConcurrentHashMap<String, String>() // url -> pageUrl
+    private val pendingCardShown = ConcurrentHashMap<String, Boolean>() // url -> was a floating card shown
     private val movieNotifyAt = ConcurrentHashMap<String, Long>()
     private val recentProbeAt = ConcurrentHashMap<String, Long>()
     private val anchorClicks = ConcurrentHashMap<Long, AnchorClick>()
@@ -663,13 +664,15 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app),
             }
         }
 
-        if (!suppressCard) addNotif(tmpId, url)
-
-        // capture counts as "search activity" for the source page (like the Windows build)
-        if (!pageUrl.isNullOrBlank() && extractionLogged.add(pageUrl)) {
-            store.addSearch(pageUrl, pageUrl, "Capture")
-            emitSearches()
+        // card actually shown? (suppressed bursts never displayed it — remember it)
+        if (!suppressCard) {
+            pendingCardShown[url] = true
+            if (pendingCardShown.size > 80) pendingCardShown.keys.firstOrNull()?.let { pendingCardShown.remove(it) }
+        } else {
+            pendingCardShown[url] = false
         }
+
+        if (!suppressCard) addNotif(tmpId, url)
 
         probeAndApply(url, pageUrl ?: "")
     }
@@ -700,6 +703,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app),
         val ok = r.status == "ok"
         val entryId = pendingTests.remove(url)
         val pendingPage = pendingPageUrl.remove(url) ?: pageUrlFallback
+        val cardShown = pendingCardShown.remove(url)
 
         if (ok) {
             val add = store.addLink(url, pendingPage.ifBlank { null }, r.isMaster == true)
@@ -727,6 +731,12 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app),
                 } else {
                     updateNotif(entryId, true)
                 }
+            }
+            // Records only for a successful capture whose card actually showed — silent
+            // bursts and failed links are never written to the history panel.
+            if (cardShown != false && pendingPage.isNotBlank() && extractionLogged.add(pendingPage)) {
+                store.addSearch(pendingPage, pendingPage, "Capture")
+                emitSearches()
             }
             refreshLinkBadge()
             emitLinks()
@@ -821,6 +831,9 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app),
 
     fun renewLink(pageUrl: String?, item: LinkEntry? = null) {
         if (pageUrl.isNullOrBlank()) { toast("No source page for this link"); return }
+        // close the side panel / full-screen window first — then navigate
+        _panel.value = null
+        _menuOpen.value = false
         val t = activeTab() ?: return
         item?.let { lastTestAt.remove(it.url) }
         t.hostIntent = TabInternal.HostIntent(Urls.etld1(Urls.hostOf(pageUrl)), System.currentTimeMillis())

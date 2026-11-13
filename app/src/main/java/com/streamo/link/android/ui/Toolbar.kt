@@ -119,14 +119,19 @@ private fun RowScope.NormalBar(vm: BrowserViewModel) {
     val canGoForward by vm.canGoForward.collectAsState()
     val urlText by vm.urlText.collectAsState()
     val urlEditing by vm.urlEditing.collectAsState()
+    val menuOpen by vm.menuOpen.collectAsState()
     val scope = rememberCoroutineScope()
     val reloadSpin = remember { Animatable(0f) }
 
     BackHandler(enabled = urlEditing) { vm.setUrlEditing(false) }
 
     Box {
-        // hamburger — the popover is rendered at the screen root (above the webviews)
-        ToolbarIconButton(onClick = { vm.toggleMenu() }, contentDescription = "Menu") {
+        // hamburger — toggles the popover (press again to close). Rendered inline at the screen root.
+        ToolbarIconButton(
+            onClick = { vm.toggleMenu() },
+            contentDescription = "Menu",
+            active = menuOpen,
+        ) {
             Icon(StreamoIcons.Menu, contentDescription = "Menu", tint = Color.White, modifier = Modifier.size(19.dp))
         }
     }
@@ -417,11 +422,12 @@ private fun RowScope.SearchBar(vm: BrowserViewModel) {
 /* ===================== buttons ===================== */
 
 @Composable
-private fun ToolbarIconButton(onClick: () -> Unit, contentDescription: String, content: @Composable () -> Unit) {
+private fun ToolbarIconButton(onClick: () -> Unit, contentDescription: String, active: Boolean = false, content: @Composable () -> Unit) {
     Box(
         modifier = Modifier
             .size(38.dp)
             .clip(RoundedCornerShape(10.dp))
+            .background(if (active) Color(0xFF1F1F1F) else Color.Transparent)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { content() }
@@ -446,32 +452,29 @@ private fun PillNavButton(onClick: () -> Unit, enabled: Boolean, contentDescript
 }
 
 @Composable
-fun MenuPopover(expanded: Boolean, onDismiss: () -> Unit, onRecords: () -> Unit, onTabs: () -> Unit) {
-    androidx.compose.ui.window.Popup(
-        alignment = Alignment.TopStart,
-        offset = androidx.compose.ui.unit.IntOffset(6, 4),
-        onDismissRequest = onDismiss,
+fun MenuPopover(
+    onRecords: () -> Unit,
+    onTabs: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    androidx.compose.animation.AnimatedVisibility(
+        visible = true,
+        enter = androidx.compose.animation.scaleIn(
+            initialScale = 0.92f,
+            transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f),
+            animationSpec = tween(240, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        ) + androidx.compose.animation.fadeIn(tween(200)) +
+            androidx.compose.animation.slideInVertically(initialOffsetY = { -it / 2 }, animationSpec = tween(240)),
+        modifier = modifier,
     ) {
-        androidx.compose.animation.AnimatedVisibility(
-            visible = expanded,
-            enter = androidx.compose.animation.scaleIn(
-                initialScale = 0.92f,
-                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f),
-                animationSpec = tween(240, easing = androidx.compose.animation.core.FastOutSlowInEasing),
-            ) + androidx.compose.animation.fadeIn(tween(200)) +
-                androidx.compose.animation.slideInVertically(initialOffsetY = { -it / 2 }, animationSpec = tween(240)),
-            exit = androidx.compose.animation.scaleOut(
-                targetScale = 0.95f,
-                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f),
-                animationSpec = tween(180),
-            ) + androidx.compose.animation.fadeOut(tween(150)),
-        ) {
         Column(
             modifier = Modifier
                 .width(168.dp)
                 .clip(RoundedCornerShape(14.dp))
                 .background(StreamoColors.MenuBg)
                 .border(1.dp, StreamoColors.BorderPill, RoundedCornerShape(14.dp))
+                // consume taps on the popover body so they don't fall through to the webview / scrim
+                .clickable(onClick = {})
                 .padding(6.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
@@ -485,7 +488,6 @@ fun MenuPopover(expanded: Boolean, onDismiss: () -> Unit, onRecords: () -> Unit,
                 icon = { Icon(StreamoIcons.Tabs, contentDescription = null, tint = StreamoColors.TextPill, modifier = Modifier.size(17.dp)) },
                 onClick = onTabs,
             )
-        }
         }
     }
 }

@@ -106,11 +106,11 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                 // LINKS panel — below the toolbar (panelRight parity)
                 LinksPanelHost(viewModel)
 
-                // menu popover (records / tabs)
+                // menu popover (records / tabs) — rendered inline, like every other overlay,
+                // so the hamburger reliably toggles it (press again to close)
                 if (menuOpen) {
                     MenuPopover(
-                        expanded = true,
-                        onDismiss = { viewModel.closeMenu() },
+                        modifier = Modifier.align(Alignment.TopStart).padding(start = 6.dp, top = 4.dp),
                         onRecords = { viewModel.closeMenu(); viewModel.togglePanel(Panel.SEARCH) },
                         onTabs = { viewModel.closeMenu(); viewModel.togglePanel(Panel.TABS) },
                     )

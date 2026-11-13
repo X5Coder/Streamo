@@ -33,9 +33,8 @@ class StreamoApp : Application() {
             try { Defense.loadLists(appContext) } catch (e: Exception) {
                 Log.e("Streamo", "defense load failed", e)
             }
+            // drop caches from previous installs if the apk changed — kept off the main thread (cold start)
+            try { cacheDir.listFiles()?.forEach { if (it.name.startsWith("com.android.")) it.deleteRecursively() } } catch (e: Exception) {}
         }.apply { isDaemon = true; name = "streamo-defense-init"; start() }
-
-        // drop caches/code cache from previous installs if the apk changed — cheap hygiene
-        try { cacheDir.listFiles()?.forEach { if (it.name.startsWith("com.android.")) it.deleteRecursively() } } catch (e: Exception) {}
     }
 }

@@ -198,7 +198,7 @@ private fun VersionFooter() {
     ) {
         Text("STREAMO", color = StreamoColors.Dim, fontSize = 7.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
         Text("  •  ", color = androidx.compose.ui.graphics.Color(0xFF2E2E2E), fontSize = 9.sp)
-        Text("v2.0.0", color = androidx.compose.ui.graphics.Color(0xFFC9CDD3), fontSize = 7.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.2.sp)
+        Text("v2.0.1", color = androidx.compose.ui.graphics.Color(0xFFC9CDD3), fontSize = 7.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.2.sp)
     }
 }
 
