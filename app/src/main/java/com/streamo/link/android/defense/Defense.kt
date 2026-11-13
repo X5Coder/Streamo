@@ -207,10 +207,12 @@ object Defense {
 
     /* ---------- stub responses (200 with an empty body) ---------- */
 
-    private val GIF_1PX: ByteArray = android.util.Base64.decode(
-        "R0lGODlhAQABAIAAAP///////yH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==",
-        android.util.Base64.DEFAULT
-    )
+    private val GIF_1PX: ByteArray by lazy {
+        android.util.Base64.decode(
+            "R0lGODlhAQABAIAAAP///////yH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==",
+            android.util.Base64.DEFAULT
+        )
+    }
     private val EMPTY_VAST: ByteArray = "<VAST version=\"3.0\"></VAST>".toByteArray()
     private val EMPTY_HTML: ByteArray = "<html></html>".toByteArray()
 
