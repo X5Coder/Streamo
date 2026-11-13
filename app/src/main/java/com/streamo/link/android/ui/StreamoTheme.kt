@@ -1,12 +1,15 @@
 package com.streamo.link.android.ui
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import com.streamo.link.android.R
 
 /** Streamo — pure black, white accent, Sora (Latin) + Cairo (Arabic). */
@@ -44,10 +47,26 @@ object StreamoColors {
 }
 
 val StreamoFontFamily = FontFamily(
-    Font(R.font.sora_variable, androidx.compose.ui.text.font.FontWeight.Normal),
-    Font(R.font.sora_variable, androidx.compose.ui.text.font.FontWeight.Bold),
-    Font(R.font.cairo_variable, androidx.compose.ui.text.font.FontWeight.Normal),
-    Font(R.font.cairo_variable, androidx.compose.ui.text.font.FontWeight.Bold),
+    Font(R.font.sora_variable, FontWeight.Normal),
+    Font(R.font.sora_variable, FontWeight.Medium),
+    Font(R.font.sora_variable, FontWeight.Bold),
+    Font(R.font.sora_variable, FontWeight.ExtraBold),
+    Font(R.font.cairo_variable, FontWeight.Normal),
+    Font(R.font.cairo_variable, FontWeight.Medium),
+    Font(R.font.cairo_variable, FontWeight.Bold),
+    Font(R.font.cairo_variable, FontWeight.ExtraBold),
+)
+
+private val StreamoTypography = Typography(
+    bodyLarge = TextStyle(fontFamily = StreamoFontFamily, fontSize = 12.sp, color = StreamoColors.Text),
+    bodyMedium = TextStyle(fontFamily = StreamoFontFamily, fontSize = 11.sp, color = StreamoColors.Text),
+    bodySmall = TextStyle(fontFamily = StreamoFontFamily, fontSize = 10.sp, color = StreamoColors.Text),
+    titleLarge = TextStyle(fontFamily = StreamoFontFamily, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = StreamoColors.Text),
+    titleMedium = TextStyle(fontFamily = StreamoFontFamily, fontSize = 11.5.sp, fontWeight = FontWeight.ExtraBold, color = StreamoColors.Text),
+    titleSmall = TextStyle(fontFamily = StreamoFontFamily, fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = StreamoColors.Text),
+    labelLarge = TextStyle(fontFamily = StreamoFontFamily, fontSize = 8.5.sp, fontWeight = FontWeight.Bold, color = StreamoColors.Text),
+    labelMedium = TextStyle(fontFamily = StreamoFontFamily, fontSize = 8.sp, fontWeight = FontWeight.SemiBold, color = StreamoColors.Text),
+    labelSmall = TextStyle(fontFamily = StreamoFontFamily, fontSize = 7.5.sp, fontWeight = FontWeight.Bold, color = StreamoColors.Text),
 )
 
 private val StreamoDark = darkColorScheme(
@@ -66,7 +85,7 @@ private val StreamoDark = darkColorScheme(
 fun StreamoTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = StreamoDark,
-        typography = MaterialTheme.typography,
+        typography = StreamoTypography,
         content = content,
     )
 }

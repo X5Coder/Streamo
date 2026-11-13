@@ -274,7 +274,6 @@ class StreamoStore(context: Context) {
         writeLinks(readLinks().filter { linkDedupeKey(it.url) != key })
     }
 
-    fun removeLink(id: String) = writeLinks(readLinks().filter { it.id != id })
     fun clearLinks() = writeLinks(emptyList())
     fun deleteFailed() = writeLinks(readLinks().filter { it.status != "fail" })
 

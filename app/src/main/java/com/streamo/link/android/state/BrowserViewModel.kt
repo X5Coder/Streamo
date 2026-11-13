@@ -621,8 +621,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app),
     }
 
     private fun onLinkCapturedMain(url: String, source: String, pageUrl: String?, httpStatus: Int?, contentType: String?, size: Long?) {
-        Log.d("StreamoCapture", "captured src=$source url=$url page=$pageUrl")
-        if (!shouldSend(url)) { Log.d("StreamoCapture", "deduped"); return }
+        if (!shouldSend(url)) return
         val now = System.currentTimeMillis()
 
         val tmpId = "pending-" + java.lang.Long.toString(now, 36) + "-" + ((Math.random() * 1e4).toInt()).toString(36)
@@ -682,7 +681,6 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app),
     }
 
     private fun applyTestResult(r: Probe.ProbeResult, pageUrlFallback: String) {
-        Log.d("StreamoCapture", "probe result url=${r.url} status=${r.status} error=${r.error} type=${r.type} http=${r.httpStatus}")
         val url = r.url
         val ok = r.status == "ok"
         val entryId = pendingTests.remove(url)
@@ -784,7 +782,6 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app),
     fun clearAllLinks() = viewModelScope.launch { store.clearLinks(); emitLinks(); refreshLinkBadge() }
     fun clearAllSearches() = viewModelScope.launch { store.clearSearch(); emitSearches() }
 
-    fun removeLink(id: String) = viewModelScope.launch { store.removeLink(id); emitLinks(); refreshLinkBadge() }
     fun removeSearch(id: String) = viewModelScope.launch { store.removeSearch(id); emitSearches() }
 
     /* Player / external actions */
@@ -806,7 +803,6 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app),
         } catch (e: Exception) { toast("No browser available to open the link") }
     }
 
-    fun openSourcePage(pageUrl: String) = createTab(pageUrl)
 
     fun renewLink(pageUrl: String?, item: LinkEntry? = null) {
         if (pageUrl.isNullOrBlank()) { toast("No source page for this link"); return }
@@ -981,10 +977,4 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app),
         tab.sleeping = true
     }
 
-    /** For the debug/automation hook (mirrors window.__streamoDebug). */
-    fun debugState(): Map<String, Any?> = mapOf(
-        "tabs" to tabsInternal.map { mapOf("id" to it.id, "url" to it.url, "sleeping" to it.sleeping) },
-        "activeId" to _activeId.value,
-        "ram" to _ramInfo.value.text,
-    )
 }

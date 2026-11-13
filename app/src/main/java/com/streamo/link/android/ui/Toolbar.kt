@@ -499,10 +499,11 @@ private fun MenuItem(label: String, icon: @Composable () -> Unit, onClick: () ->
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         icon()
         Text(
-            text = "   $label",
+            text = label,
             color = Color(0xFFE3E5E8),
             fontSize = 10.5.sp,
             fontWeight = FontWeight.SemiBold,

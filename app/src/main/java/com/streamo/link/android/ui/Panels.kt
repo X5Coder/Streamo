@@ -417,15 +417,15 @@ private fun StatusChip(item: LinkEntry) {
                 horizontalArrangement = Arrangement.spacedBy(5.dp),
             ) {
                 Box(modifier = Modifier.size(6.dp).background(StreamoColors.Gold, CircleShape).alpha(dotAlpha))
-                Text("Testing…", color = StreamoColors.Gold, fontSize = 7.5.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.05.sp)
+                Text("TESTING…", color = StreamoColors.Gold, fontSize = 7.5.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.37.sp)
             }
         }
         "ok" -> Row(
             modifier = Modifier.clip(RoundedCornerShape(999.dp)).background(StreamoColors.OkBg).padding(horizontal = 9.dp, vertical = 3.dp),
-        ) { Text("✓ Working", color = StreamoColors.OkText, fontSize = 7.5.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.05.sp) }
+        ) { Text("✓ WORKING", color = StreamoColors.OkText, fontSize = 7.5.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.37.sp) }
         else -> Row(
             modifier = Modifier.clip(RoundedCornerShape(999.dp)).background(StreamoColors.FailBg).padding(horizontal = 9.dp, vertical = 3.dp),
-        ) { Text("✗ Failed", color = StreamoColors.Fail, fontSize = 7.5.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.05.sp) }
+        ) { Text("✗ FAILED", color = StreamoColors.Fail, fontSize = 7.5.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.37.sp) }
     }
 }
 
@@ -631,6 +631,7 @@ private fun SearchCard(vm: BrowserViewModel, item: SearchEntry) {
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 lineHeight = 16.sp,
+                style = androidx.compose.ui.text.TextStyle(textDirection = androidx.compose.ui.text.style.TextDirection.Content),
             )
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (item.engine.isNotBlank()) {
