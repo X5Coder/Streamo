@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Streamo</string>
+    <string name="notif_capture">Link captured</string>
+    <string name="notif_failed">Link failed</string>
+</resources>
