@@ -23,7 +23,7 @@ WIN_ROOT = os.path.dirname(os.path.dirname(ROOT)) + os.sep + "streamo_win"
 # artwork inside the guaranteed-visible 66dp safe zone of the 108dp adaptive viewport
 # (radius 144 viewBox units; safe zone = 88). Any launcher mask â€” circle, squircle,
 # teardrop, Realme/Pixel â€” keeps every pixel of the artwork visible.
-ARTWORK_TARGET_RADIUS = 56
+ARTWORK_TARGET_RADIUS = 68
 SPLASH_TARGET_RADIUS = 72
 RASTER_SIZES = {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}
 
