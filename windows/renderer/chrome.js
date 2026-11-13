@@ -868,6 +868,7 @@
         t.view.src = pageUrl;
         toast('Re-capturing from the same page...');
       }
+      try { closeMenu(); } catch (e) {}
       closePanel();
     },
     onOpenPage: function (pageUrl) { createTab(pageUrl); closePanel(); },
@@ -1242,7 +1243,7 @@
         status: 'testing', error: null, via: null, finalUrl: null,
         pageUrl: pageUrl, ts: now, testedAt: null
       };
-      pendingTests.set(url, { tmp: tmpEntry, pageUrl: pageUrl });
+      pendingTests.set(url, { tmp: tmpEntry, pageUrl: pageUrl, cardShown: !suppressCard });
       lastTestAt.set(url, now);
       if (pendingTests.size > 80) {
         var oldestPending = pendingTests.keys().next();
@@ -1273,14 +1274,6 @@
 
       // comment
       runLinkTest(url, pageUrl);
-
-      // comment
-      if (pageUrl && !extractionLogged.has(pageUrl)) {
-        if (extractionLogged.size > 400) extractionLogged.clear();
-        extractionLogged.add(pageUrl);
-        window.StreamoStore.addSearch(pageUrl, pageUrl, 'Capture');
-        refreshSearchIfOpen();
-      }
     });
   }
 
@@ -1322,6 +1315,14 @@
         }
       } else {
         if (entryId) updateMiniCard(entryId, true);
+      }
+      // Records only for a successful capture whose card actually showed — silent
+      // bursts (card suppressed) and failed links never reach the history panel.
+      if (pending && pending.cardShown && pending.pageUrl && !extractionLogged.has(pending.pageUrl)) {
+        if (extractionLogged.size > 400) extractionLogged.clear();
+        extractionLogged.add(pending.pageUrl);
+        window.StreamoStore.addSearch(pending.pageUrl, pending.pageUrl, 'Capture');
+        refreshSearchIfOpen();
       }
       refreshLinkBadge();
       renderLinks(false);

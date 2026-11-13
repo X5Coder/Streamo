@@ -1,8 +1,8 @@
 {
   "name": "streamo-link",
   "productName": "Streamo",
-  "version": "2.0.0",
-  "description": "Streamo — متصفح داخلي يلتقط روابط الفيديو ويختبرها (نسخة ويندوز المستقلة)",
+  "version": "2.0.1",
+  "description": "Streamo â€” Ù…ØªØµÙØ­ Ø¯Ø§Ø®Ù„ÙŠ ÙŠÙ„ØªÙ‚Ø· Ø±ÙˆØ§Ø¨Ø· Ø§Ù„ÙÙŠØ¯ÙŠÙˆ ÙˆÙŠØ®ØªØ¨Ø±Ù‡Ø§ (Ù†Ø³Ø®Ø© ÙˆÙŠÙ†Ø¯ÙˆØ² Ø§Ù„Ù…Ø³ØªÙ‚Ù„Ø©)",
   "main": "main.js",
   "license": "UNLICENSED",
   "private": true,
