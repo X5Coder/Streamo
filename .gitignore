@@ -1,0 +1,28 @@
+# build outputs
+**/build/
+**/.gradle/
+**/.kotlin/
+**/captures/
+**/dist/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# local machine config (contains sdk path)
+local.properties
+
+# logs
+*.log
+
+# dev/ screenshots (test artifacts)
+dev/*.png
+dev/*.xml
+
+# capture test fixtures may stay committed (small)
+!dev/capture-test/
+
+# OS
+Thumbs.db
+.DS_Store
