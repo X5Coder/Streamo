@@ -1,26 +1,31 @@
-# Streamo — Official Website
+<div align="center">
 
-The official website of **Streamo** — extract the direct link of any movie or series from watching websites, play it anywhere with no ads, or share it with friends on Live Cinema.
+<img src="assets/img/logo.svg" alt="Streamo" width="120">
 
-- Arabic (default): [`index.html`](index.html)
-- English: [`en/index.html`](en/index.html)
+# Streamo
 
-## Live site
+**Steal the stream. Skip the ads.**
 
-https://x5coder.github.io/streamo-website/
+Extract the direct link of any movie or series from a watching website.
+Play it anywhere with no ads, or share it with friends on [Live Cinema](https://live-cinema.pages.dev/).
 
-## Downloads
+[![Windows](https://img.shields.io/badge/Windows-Download-000?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/X5Coder/Streamo/releases/download/windows-v2.0.1/Streamo-v2.0.1-portable.exe)
+[![Android](https://img.shields.io/badge/Android-Download-000?style=for-the-badge&logo=android&logoColor=white)](https://github.com/X5Coder/Streamo/releases/download/android-v2.0.1/Streamo-v2.0.1-android.apk)
+[![Live Cinema](https://img.shields.io/badge/Live%20Cinema-Watch%20Together-000?style=for-the-badge)](https://live-cinema.pages.dev/)
 
-| Platform | File | Size | Link |
-|---|---|---|---|
-| Windows | `Streamo-v2.0.1-portable.exe` | 73 MB · portable | [Download](https://github.com/X5Coder/Streamo/releases/download/windows-v2.0.1/Streamo-v2.0.1-portable.exe) |
-| Android | `Streamo-v2.0.1-android.apk` | 4.4 MB · APK | [Download](https://github.com/X5Coder/Streamo/releases/download/android-v2.0.1/Streamo-v2.0.1-android.apk) |
+**Live site:** https://x5coder.github.io/streamo-website/ · [العربية](https://x5coder.github.io/streamo-website/)
 
-## Tech
+</div>
 
-Pure static HTML/CSS/JS — no frameworks, no build step. Deployed on GitHub Pages.
+---
 
-- X5Coder — Telegram: https://t.me/+r5quzZfCQX4yZDRk
-- YouTube: https://youtube.com/@kareem-x5coder
-- Live Cinema: https://live-cinema.pages.dev/
-- Source: https://github.com/X5Coder/Streamo
+Static, dependency-free site — Arabic (`index.html`) and English (`en/`).
+Self-hosted fonts: **Cairo Variable** (Arabic) + **Sora Variable** (Latin/English).
+Deployed automatically by GitHub Pages from the `main` branch.
+
+```bash
+# update the site, then:
+git add -A && git commit -m "update" && git push
+```
+
+**Made by [X5Coder](https://github.com/X5Coder) · All rights reserved**

@@ -4,6 +4,13 @@
    White & Black · Clean · Fast · Light
    ============================================================ */
 
+/* ====== الخطوط المحلية من مشروع X5Coder (Cairo للعربي · Sora للإنجليزي) ====== */
+@font-face { font-family: 'Sora'; src: url('../fonts/sora-latin.woff2') format('woff2'); font-weight: 200 800; font-style: normal; font-display: swap; unicode-range: U+0000-00FF, U+2010-205F, U+20AC, U+20B9, U+20BD, U+2212; }
+@font-face { font-family: 'Sora'; src: url('../fonts/sora-latin-ext.woff2') format('woff2'); font-weight: 200 800; font-style: normal; font-display: swap; unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD, U+20B4-20BB, U+2113, U+2C60-2C7F, U+A722-A787; }
+@font-face { font-family: 'Cairo'; src: url('../fonts/cairo-latin.woff2') format('woff2'); font-weight: 200 1000; font-style: normal; font-display: swap; unicode-range: U+0000-00FF, U+2010-205F, U+20AC; }
+@font-face { font-family: 'Cairo'; src: url('../fonts/cairo-latin-ext.woff2') format('woff2'); font-weight: 200 1000; font-style: normal; font-display: swap; unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD, U+20B4-20BB, U+2113, U+2C60-2C7F, U+A722-A787; }
+@font-face { font-family: 'Cairo'; src: url('../fonts/cairo-arabic.woff2') format('woff2'); font-weight: 200 1000; font-style: normal; font-display: swap; unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF, U+0660-0669, U+200C-200F, U+2028-202F; }
+
 :root {
   --bg: #ffffff;
   --ink: #0b0b0b;
@@ -20,8 +27,8 @@
   --shadow-sm: 0 2px 6px rgba(11, 11, 11, .06), 0 12px 32px rgba(11, 11, 11, .08);
   --shadow-lg: 0 4px 10px rgba(11, 11, 11, .10), 0 30px 70px rgba(11, 11, 11, .20);
   --ease: cubic-bezier(.22, 1, .36, 1);
-  --font-en: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-ar: 'IBM Plex Sans Arabic', 'Inter', 'Segoe UI', Tahoma, sans-serif;
+  --font-en: 'Sora', 'Cairo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-ar: 'Cairo', 'Sora', 'Segoe UI', Tahoma, sans-serif;
   --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
