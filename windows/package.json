@@ -1,8 +1,8 @@
 {
   "name": "streamo-link",
-  "productName": "Streamo Link",
+  "productName": "Streamo",
   "version": "2.0.0",
-  "description": "Streamo Link — متصفح داخلي يلتقط روابط الفيديو ويختبرها (نسخة ويندوز المستقلة)",
+  "description": "Streamo — متصفح داخلي يلتقط روابط الفيديو ويختبرها (نسخة ويندوز المستقلة)",
   "main": "main.js",
   "license": "UNLICENSED",
   "private": true,
@@ -15,7 +15,7 @@
   },
   "build": {
     "appId": "com.Streamo.link.windows",
-    "productName": "Streamo Link",
+    "productName": "Streamo",
     "copyright": "Coding By Kimo",
     "files": [
       "main.js",
@@ -32,11 +32,13 @@
     "win": {
       "target": "portable",
       "icon": "assets/app_icon.ico",
-      "artifactName": "Streamo-Link-v${version}-portable.exe",
-      "requestedExecutionLevel": "asInvoker"
+      "artifactName": "Streamo-v${version}-portable.exe",
+      "requestedExecutionLevel": "asInvoker",
+      "certificateFile": "../Streamo-sign.pfx",
+      "certificatePassword": "kareem1234##xxz"
     },
     "portable": {
-      "artifactName": "Streamo-Link-v${version}-portable.exe"
+      "artifactName": "Streamo-v${version}-portable.exe"
     }
   },
   "devDependencies": {

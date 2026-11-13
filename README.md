@@ -1,6 +1,6 @@
-# Streamo Link — Windows Edition
+# Streamo — Windows Edition
 
-Streamo Link for Windows — a standalone Electron-based browser/app focused on capturing video links from the web (Egyptian-style pirate streaming sites supported via ad shield).
+Streamo for Windows — a standalone Electron-based browser/app focused on capturing video links from the web (Egyptian-style pirate streaming sites supported via ad shield).
 
 ## Features
 - **Built-in browser toolbar** — back / forward / tabs / search history / link history / domain-locked URL bar with lock-to-edit pill.
@@ -11,7 +11,7 @@ Streamo Link for Windows — a standalone Electron-based browser/app focused on 
 - **Notification mini-cards** with automatic fade-out (10s success / 5s fail), max 5 stack, swipe / click-to-dismiss.
 - **Pro internal player** (no chat, no room, no sync): seek bar with drag/hover tooltip, ±10s skip, auto-hide controls, retry on failure, fullscreen.
 - **Open in external browser** — link cards / search history can open the source in the system default browser (or internal tab, configurable).
-- **Side panels** — Extracted Links (test report, grouped by site, swipe-to-delete), Search History (swipe), Tabs. Includes `Streamo Link · v2.0.0` version footer.
+- **Side panels** — Extracted Links (test report, grouped by site, swipe-to-delete), Search History (swipe), Tabs. Includes `Streamo · v2.0.0` version footer.
 - **Hot reload dev-mode** — `npm run dev` (Node + fs watch) — any change rebuilds shared assets & relaunches the app in ~1s.
 
 ## Build

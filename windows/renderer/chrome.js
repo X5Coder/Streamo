@@ -1,5 +1,5 @@
 /*
- * Streamo Link — Browser window logic (Windows).
+ * Streamo — Browser window logic (Windows).
  * Multi-tabs + compact dark toolbar + smart search + internal player + ad-shield.
  * Domain lock: while you are inside a site (tracked per tab), any navigation/redirect to a
  * foreign eTLD+1 is blocked unless it is the site itself, a hop of a user-initiated action,
@@ -41,11 +41,14 @@
   var urlText = document.getElementById('urlText');
   var urlPill = document.getElementById('urlPill');
   var urlInput = document.getElementById('urlInput');
-  var urlLock = document.getElementById('urlLock');
-  var btnHome = document.getElementById('btnHome');
-  var btnUrlGo = document.getElementById('btnUrlGo');
-  var lockIconLocked = document.getElementById('lockIconLocked');
-  var lockIconUnlocked = document.getElementById('lockIconUnlocked');
+  var btnMenu = document.getElementById('btnMenu');
+  var menuPop = document.getElementById('menuPop');
+  var menuRecords = document.getElementById('menuRecords');
+  var menuTabs = document.getElementById('menuTabs');
+  var urlReload = document.getElementById('urlReload');
+  var urlHome = document.getElementById('urlHome');
+  var pillProgress = document.getElementById('pillProgress');
+  var pillProgressBar = document.getElementById('pillProgressBar');
 
   var HOOK =
     "(function(){try{if(window.__streamoHookReady)return;window.__streamoHookReady=true;" +
@@ -328,6 +331,7 @@
     });
     view.addEventListener('did-finish-load', function () {
       try { view.executeJavaScript(HOOK).catch(function () {}); } catch (e) {}
+      finishLoadProgress();
       updateBackForward(tab);
       updateUrlPill(tab);
       renderTabsList();
@@ -365,6 +369,7 @@
         toast('Blocked - click again to continue');
         return;
       }
+      startLoadProgress();
     });
     view.addEventListener('will-redirect', function (event) {
       var url = event.url || '';
@@ -388,7 +393,7 @@
     if (!tab || tab.id !== activeTabId) return;
     var u = tab.url || '';
     urlText.textContent = u;
-    urlPill.title = u + ' - click to copy (click the lock to type)';
+    urlPill.title = u + ' - click to search';
     if (editMode) urlInput.value = u;
   }
 
@@ -921,9 +926,88 @@
     if (playerEl && playerEl.classList.contains('open')) closePlayer();
   }
 
+  /* Menu popover — animated dropdown: Records + Tabs */
+  var menuScrim = document.getElementById('menuScrim');
+  function closeMenu() {
+    if (menuPop) menuPop.classList.remove('open');
+    if (btnMenu) btnMenu.classList.remove('active');
+    if (menuScrim) menuScrim.classList.remove('show');
+  }
+  if (btnMenu && menuPop) {
+    btnMenu.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      var willOpen = !menuPop.classList.contains('open');
+      if (willOpen) {
+        menuPop.classList.add('open');
+        btnMenu.classList.add('active');
+        if (menuScrim) menuScrim.classList.add('show');
+      }
+      else closeMenu();
+    });
+    if (menuRecords) menuRecords.addEventListener('click', function () {
+      closeMenu(); closePlayerIfOpen(); openPanel('search');
+    });
+    if (menuTabs) menuTabs.addEventListener('click', function () {
+      closeMenu(); closePlayerIfOpen(); openPanel('tabs');
+    });
+    /* Clicking anywhere outside the popover closes it — with animation */
+    if (menuScrim) menuScrim.addEventListener('click', closeMenu);
+    document.addEventListener('click', function (ev) {
+      if (!menuPop.classList.contains('open')) return;
+      var t = ev.target;
+      if (t && (menuPop.contains(t) || btnMenu.contains(t))) return;
+      closeMenu();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && menuPop.classList.contains('open')) closeMenu();
+    });
+  }
+
+  /* Real progress: the bar eases toward milestones the guest reports as the page loads
+     (start → HTML response → DOM interactive → DOMContentLoaded → window load).
+     Fallback: did-finish-load forces 100%. */
+  var loadProgressTimer = null;
+  var loadProgressVal = 0;
+  var loadProgressTarget = 0;
+  function setLoadProgress(v) {
+    loadProgressVal = v;
+    if (pillProgressBar) pillProgressBar.style.width = Math.max(0, Math.min(100, v)).toFixed(1) + '%';
+  }
+  function startLoadProgress() {
+    if (loadProgressTimer) window.clearInterval(loadProgressTimer);
+    loadProgressVal = 8;
+    loadProgressTarget = 8;
+    setLoadProgress(loadProgressVal);
+    if (pillProgress) pillProgress.classList.add('active');
+    loadProgressTimer = window.setInterval(function () {
+      if (loadProgressVal < loadProgressTarget) {
+        loadProgressVal = Math.min(loadProgressTarget, loadProgressVal + Math.max(0.5, (loadProgressTarget - loadProgressVal) * 0.16));
+        setLoadProgress(loadProgressVal);
+      }
+    }, 50);
+  }
+  function setLoadPhase(phase) {
+    var map = { start: 14, domLoading: 32, domInteractive: 55, domContentLoaded: 76, load: 100 };
+    var v = map[phase];
+    if (v == null) return;
+    loadProgressTarget = v;
+    if (v >= 100) finishLoadProgress();
+  }
+  function finishLoadProgress() {
+    if (loadProgressTimer) { window.clearInterval(loadProgressTimer); loadProgressTimer = null; }
+    loadProgressVal = 100;
+    loadProgressTarget = 100;
+    setLoadProgress(100);
+    if (pillProgress) pillProgress.classList.add('active');
+    window.setTimeout(function () {
+      setLoadProgress(0);
+      loadProgressVal = 0;
+      loadProgressTarget = 0;
+      if (pillProgress) pillProgress.classList.remove('active');
+    }, 220);
+  }
+
   document.getElementById('btnLinks').addEventListener('click', function () { closePlayerIfOpen(); openPanel('links'); });
-  document.getElementById('btnHistory').addEventListener('click', function () { closePlayerIfOpen(); openPanel('search'); });
-  document.getElementById('btnTabs').addEventListener('click', function () { closePlayerIfOpen(); openPanel('tabs'); });
   document.getElementById('closeLinks').addEventListener('click', closePanel);
   document.getElementById('closeSearch').addEventListener('click', closePanel);
   document.getElementById('closeTabs').addEventListener('click', closePanel);
@@ -968,41 +1052,56 @@
     if (extractionLogged.size > 400) extractionLogged.clear();
   }, 60000);
 
-  /* comment */
+  /* Editing mode — the pill morphs into a text field; back/forward/reload hide */
   var editMode = false;
 
   function setEditMode(on) {
     editMode = !!on;
     urlPill.classList.toggle('editing', editMode);
-    lockIconLocked.style.display = editMode ? 'none' : '';
-    lockIconUnlocked.style.display = editMode ? '' : 'none';
-    btnHome.style.display = editMode ? 'none' : '';
     if (editMode) {
       var t = activeTab();
       urlInput.value = (t && t.url) || '';
       urlPill.title = 'Type a URL or search - Enter to go';
-      // comment
       window.setTimeout(function () { try { urlInput.focus(); urlInput.select(); } catch (e) {} }, 30);
     } else {
-      urlPill.title = 'Current page - click to copy (click the lock to type)';
+      urlPill.title = 'Current page — click to search';
     }
   }
 
-  function copyUrlToClipboard() {
-    var t = activeTab();
-    var text = (t && t.url) ? t.url : urlText.textContent;
-    if (!text) return;
-    var done = function () { toast('Copied OK'); };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done, done);
-    } else {
-      var ta = document.createElement('textarea');
-      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
-      document.body.appendChild(ta); ta.select();
-      try { document.execCommand('copy'); } catch (e) {}
-      document.body.removeChild(ta);
-      done();
-    }
+  /* The pill IS the search/edit affordance — clicking it morphs the pill into a
+     text field prefilled with the current URL (in place, nothing hidden). */
+  urlPill.addEventListener('click', function (ev) {
+    if (editMode) return; // editing inside the address bar
+    var t = ev.target;
+    if (t && (btnBack === t || btnBack.contains(t) || btnForward === t || btnForward.contains(t) || urlReload === t || urlReload.contains(t) || urlHome === t || urlHome.contains(t))) return;
+    setEditMode(true);
+  });
+  if (urlReload) {
+    urlReload.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      var v = activeView();
+      urlReload.classList.remove('spinning');
+      void urlReload.offsetWidth; // restart animation
+      urlReload.classList.add('spinning');
+      window.setTimeout(function () { urlReload.classList.remove('spinning'); }, 900);
+      startLoadProgress();
+      try { if (v && typeof v.reload === 'function') v.reload(); } catch (e) {}
+    });
+    urlReload.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); this.click(); }
+    });
+  }
+  /* Home — jump to the app's homepage (Google) in the current tab */
+  if (urlHome) {
+    urlHome.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      var t = activeTab();
+      if (t) hostNavigate(t, 'https://www.google.com/');
+      startLoadProgress();
+    });
+    urlHome.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); this.click(); }
+    });
   }
 
   function isLikelyUrl(s) {
@@ -1022,45 +1121,19 @@
     setEditMode(false);
   }
 
-  urlPill.addEventListener('click', function (ev) {
-    if (editMode) return; // editing inside the address bar
-    if (ev.target && (ev.target === urlLock || urlLock.contains(ev.target) || ev.target === urlReload || urlReload.contains(ev.target) || ev.target === btnHome || btnHome.contains(ev.target))) return;
-    copyUrlToClipboard();
-  });
-  urlLock.addEventListener('click', function (ev) {
-    ev.stopPropagation();
-    setEditMode(!editMode);
-  });
-  urlLock.addEventListener('keydown', function (ev) {
-    if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setEditMode(!editMode); }
-  });
-  var urlReload = document.getElementById('urlReload');
-  if (urlReload) {
-    urlReload.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      var v = activeView();
-      urlPill.classList.remove('spinning');
-      void urlPill.offsetWidth; // restart animation
-      urlPill.classList.add('spinning');
-      try { if (v && typeof v.reload === 'function') v.reload(); } catch (e) {}
-    });
-    urlReload.addEventListener('keydown', function (ev) {
-      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); this.click(); }
-    });
-  }
-  if (btnHome) {
-    btnHome.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      var t = activeTab();
-      if (t) hostNavigate(t, 'https://www.google.com/'); // same-tab Go home
-    });
-  }
-  btnUrlGo.addEventListener('click', function (ev) { ev.stopPropagation(); commitUrlEdit(); });
   urlInput.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); commitUrlEdit(); }
     else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setEditMode(false); }
   });
   urlInput.addEventListener('blur', function () { setEditMode(false); });
+
+  /* Clicking anywhere outside the pill / search bar closes the edit or search state */
+  function outsideChromeClick(ev) {
+    var t = ev.target;
+    if (editMode && urlPill && !(t && urlPill.contains(t))) setEditMode(false);
+    if (searchBar && searchBar.style.display !== 'none' && t && !searchBar.contains(t)) exitSearchMode();
+  }
+  document.addEventListener('mousedown', outsideChromeClick, true);
 
   /* ================= Back / Forward ================= */
   function goBack() {
@@ -1114,11 +1187,9 @@
     }, 150);
   }
 
-  /** Auto-prefix the user's query: "مشاهدة <text> اونلاين" — applies to both the button and Enter */
+  /** The query goes to Google as-is — no forced "مشاهدة ... اونلاين" prefix. */
   function composeSearchQuery(text) {
-    var t = String(text || '').trim();
-    if (!t) return '';
-    return 'مشاهدة ' + t + ' اونلاين';
+    return String(text || '').trim();
   }
 
   function doSearch() {
@@ -1129,7 +1200,7 @@
     exitSearchMode();
   }
 
-  document.getElementById('btnSearch').addEventListener('click', enterSearchMode);
+  /* The pill itself enters search mode — no dedicated search button anymore */
   document.getElementById('btnSearchBack').addEventListener('click', exitSearchMode);
   document.getElementById('btnDoSearch').addEventListener('click', doSearch);
   searchInput.addEventListener('keydown', function (e) {
@@ -1320,6 +1391,19 @@
     });
   }
 
+  /* Any mouse-down inside the guest page → close the popover, and any open panel */
+  if (window.streamoBridge.onGuestClick) {
+    window.streamoBridge.onGuestClick(function () {
+      try { closeMenu(); } catch (e) {}
+      try { if (openSide) closePanel(); } catch (e) {}
+    });
+  }
+  /* Real page-load milestones from the guest → drive the toolbar progress line */
+  if (window.streamoBridge.onLoadPhase) {
+    window.streamoBridge.onLoadPhase(function (payload) {
+      try { setLoadPhase(payload && payload.phase); } catch (e) {}
+    });
+  }
   /* A guest tab process died (crash) — revive the same tab in place instead of
      opening a duplicate every time. After 3 crashes in 2 minutes we leave it
      asleep and let the user click it to retry (stops crash/oom loops). */
@@ -1684,7 +1768,7 @@
         try {
           shakaPlayer.configure({
             streaming: { bufferingGoal: 8, rebufferingGoal: 2, bufferBehind: 10 },
-            abr: { restrictions: { maxHeight: 1080 } }
+            abr: { useNetworkInformation: false, defaultBandwidthEstimate: 500000, restrictions: { maxHeight: 1080 } }
           });
         } catch (e) {}
 

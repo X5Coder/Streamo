@@ -14,3 +14,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Code-signing certificate (private key — never commit)
+Streamo-sign.pfx

@@ -1,5 +1,5 @@
 /*
- * Streamo Link — renderer preload (contextIsolation on).
+ * Streamo — renderer preload (contextIsolation on).
  * Only a narrow, explicit surface is exposed to the page.
  */
 'use strict';
@@ -101,6 +101,18 @@ contextBridge.exposeInMainWorld('streamoBridge', {
   onFlushSession: (callback) => {
     ipcRenderer.on('streamo:flush-session', () => {
       try { callback && callback(); } catch (e) {}
+    });
+  },
+  /** Fired when a guest webview reports a mouse-down — close open popups/panels */
+  onGuestClick: (callback) => {
+    ipcRenderer.on('streamo:guest-click', () => {
+      try { callback && callback(); } catch (e) { console.error('guest-click callback', e); }
+    });
+  },
+  /** Real page-load milestones from the guest (start, domLoading, domInteractive, domContentLoaded, load) */
+  onLoadPhase: (callback) => {
+    ipcRenderer.on('streamo:load-phase', (event, payload) => {
+      try { callback && callback(payload); } catch (e) { console.error('load-phase callback', e); }
     });
   },
   /** The internal player was closed - the heavy media cache can be dropped */

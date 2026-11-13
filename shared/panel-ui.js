@@ -1,5 +1,5 @@
 /*
- * Streamo Link — تصيير لوحتي "الروابط المسحوبة" (Streamo).
+ * Streamo — تصيير لوحتي "الروابط المسحوبة" (Streamo).
  * مُستخدم داخل chrome.html — يتعرض للكونسول عبر StreamoPanelUI.
  */
 'use strict';

@@ -1,5 +1,5 @@
-﻿/*
- * Streamo Link — درع الإعلانات (منقول من X5 Agent / browser_control/defense).
+/*
+ * Streamo — درع الإعلانات (منقول من X5 Agent / browser_control/defense).
  * نفس القواعد ونفس الهيكل: NET + TABS + HEURISTIC + ALLOWLIST.
  * يعمل في نواة Electron (node) — الأندرويد له نسخة جافا مطابقة (Defense.java)
  * ونفس ملفات القوائم.

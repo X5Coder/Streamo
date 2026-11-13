@@ -1,5 +1,5 @@
 /*
- * Streamo Link - Windows app core (standalone Electron app, single portable .exe).
+ * Streamo - Windows app core (standalone Electron app, single portable .exe).
  * Browser + ad shield + link probing (simple HTTP Range request in the main process - no hidden webview).
  *
  * NOTE: Comments are intentionally ASCII-only. Arabic comments in the original file
@@ -73,7 +73,7 @@ let appIsQuitting = false;
 
 /* ================= Crash recovery (black screen fix) =================
  * Root cause: the renderer (drawing) process dies silently. The window remains
- * visible titled "Streamo Link" with no content -> user sees a frozen black window.
+ * visible titled "Streamo" with no content -> user sees a frozen black window.
  * Fix: watch render-process-gone for every webContents + child-process-gone (GPU/Utility),
  * log the reason, auto-reload the window, and if it happens >3 times in 5 minutes,
  * relaunch the app (with --disable-gpu if GPU is crashing).
@@ -693,7 +693,7 @@ function createMainWindow() {
     show: false, // shown immediately when ready (no splash)
     autoHideMenuBar: true,
     backgroundColor: '#000000',
-    title: 'Streamo Link',
+    title: 'Streamo',
     icon: path.join(__dirname, 'assets', 'app_icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -820,6 +820,15 @@ app.whenReady().then(() => {
   ipcMain.on('streamo:gesture-for', (event, id) => {
     const ts = gestures.get(Number(id));
     event.returnValue = !!ts && (Date.now() - ts) < 2000;
+  });
+
+  // Any guest page mouse-down → tell the chrome UI to close popups/panels
+  ipcMain.on('streamo:guest-click', () => {
+    try { if (win && !win.isDestroyed()) win.webContents.send('streamo:guest-click'); } catch (e) {}
+  });
+  // Real page-load milestones from the guest → forward to the chrome UI
+  ipcMain.on('streamo:load-phase', (event, payload) => {
+    try { if (win && !win.isDestroyed()) win.webContents.send('streamo:load-phase', payload || {}); } catch (e) {}
   });
 
   ipcMain.on('streamo:open-external', (event, url) => {

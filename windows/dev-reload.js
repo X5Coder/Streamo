@@ -1,5 +1,5 @@
 /*
- * Streamo Link — وضع التطوير (Hot Reload) بدون أي حزم خارجية.
+ * Streamo — وضع التطوير (Hot Reload) بدون أي حزم خارجية.
  * التشغيل:  npm run dev
  *
  * طريقة العمل: polling كل 700ms على شجرة الملفات — لا يستخدم fs.watch
@@ -134,7 +134,7 @@ function schedule(needsSync) {
   }, 350);
 }
 
-console.log('[dev] Streamo Link — hot reload (polling). Ctrl+C to stop.');
+console.log('[dev] Streamo — hot reload (polling). Ctrl+C to stop.');
 lastSnapshot = collect(WATCH_ROOTS);
 setInterval(poll, 700);
 start();
