@@ -6,75 +6,111 @@
 
 **Steal the stream. Skip the ads.**
 
-Capture the direct link of any movie or series.
-Watch it anywhere, or share it with friends.
+Extract the direct link of any movie or series from a watching website.
+Play it anywhere with no ads, or share it with friends on Live Cinema.
 
-[![Windows](https://img.shields.io/badge/Windows-Download-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/X5Coder/Streamo/releases/download/windows-v2.0.1/Streamo-v2.0.1-portable.exe)
-[![Android](https://img.shields.io/badge/Android-Download-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/X5Coder/Streamo/releases/download/android-v2.0.1/Streamo-v2.0.1-android.apk)
-[![Live Cinema](https://img.shields.io/badge/Live%20Cinema-Watch%20Together-E50914?style=for-the-badge)](https://live-cinema.pages.dev/)
+[![Windows](https://img.shields.io/badge/Windows-Download-000000?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/X5Coder/Streamo/releases/download/windows-v2.0.1/Streamo-v2.0.1-portable.exe)
+[![Android](https://img.shields.io/badge/Android-Download-000000?style=for-the-badge&logo=android&logoColor=white)](https://github.com/X5Coder/Streamo/releases/download/android-v2.0.1/Streamo-v2.0.1-android.apk)
+[![Live Cinema](https://img.shields.io/badge/Live%20Cinema-Watch%20Together-000000?style=for-the-badge)](https://live-cinema.pages.dev/)
 
 </div>
 
 ---
+
+## Features
+
+- **Built-in browser** to search and open watching websites inside the app
+- **Automatic link extraction** from any server you play
+- **Automatic link test** that tells you if the extracted link works or failed
+- **Extracted Links history** that saves every link in one place
+- **Built-in player**, or open the link in Chrome or any player you like
+- **No ads**, because you watch outside the watching website
+- **Windows and Android** with the same experience
 
 ## How It Works
 
 ```mermaid
 flowchart LR
-    A(Search) --> B(Open a site)
-    B --> C(Press play)
-    C --> D{Link captured?}
-    D -- Yes --> E(Watch without ads)
-    D -- No --> F(Try another server or site)
-    F --> C
-    E --> G(Share on Live Cinema)
+    A(Search for a movie or series) --> B(Open a watching website<br/>Top Cinema, Cinema La Rosa, ...)
+    B --> C(Choose the movie or episode<br/>then press Play)
+    C --> D(Open a server and start playback)
+    D --> E{Is the link extracted<br/>and the test passed?}
+    E -- No --> F(Switch to another<br/>server or website)
+    F --> D
+    E -- Yes --> G(Open it from Extracted Links)
+    G --> H(Watch without ads)
+    H --> I(Share it on Live Cinema)
 
-    classDef step fill:#111827,stroke:#E50914,stroke-width:2px,color:#ffffff;
-    classDef check fill:#E50914,stroke:#E50914,color:#ffffff;
-    classDef done fill:#0f766e,stroke:#14b8a6,stroke-width:2px,color:#ffffff;
-    class A,B,C,F step;
-    class D check;
-    class E,G done;
+    classDef step fill:#000000,stroke:#8b8b8b,stroke-width:2px,color:#ffffff;
+    classDef check fill:#000000,stroke:#ffffff,stroke-width:3px,color:#ffffff;
+    classDef done fill:#ffffff,stroke:#ffffff,stroke-width:2px,color:#000000;
+    class A,B,C,D,F,G step;
+    class E check;
+    class H,I done;
+    linkStyle default stroke:#8b8b8b,stroke-width:2px;
 ```
 
 ## Quick Start
 
+The steps are the same on Windows and Android.
+
 **1. Search**
-Type `مشاهدة فيلم <name> اونلاين` in the app. You can add a site name at the end.
+Type `مشاهدة فيلم <name> اونلاين` or `مشاهدة مسلسل <name> اونلاين` in the app. You can add a website name at the end, or leave it out.
 
-**2. Play**
-Open any site from the results, choose your movie or episode, and press play.
+**2. Open a watching website**
+Choose any website from the results, such as Top Cinema, Cinema La Rosa, or any other site.
 
-**3. Capture**
-A floating window appears and tests the stream link automatically.
-If the test fails, switch to another server or site. If it passes, tap the link.
+**3. Play**
+Choose the movie or episode and press **Play**.
 
-**4. Watch**
-Open **Extracted Links** and play the link in the built-in player or in Chrome.
+**4. Try the servers**
+Open each server on the page and start the video, as if you were going to watch it normally.
 
-> Links expire after a while. Refresh the link or capture a new one.
+**5. Check the floating window**
+When the video starts, a floating window appears on the right. It shows the extracted direct link and tests it automatically.
 
-Works the same on Windows and Android.
+| Result | What to do |
+| :-- | :-- |
+| No link appears | Switch to another server or website |
+| Link appears but the test failed | Switch to another server or website |
+| Link appears and the test passed | Tap it, or open the **Extracted Links** icon |
+
+**6. Use the link**
+In **Extracted Links** you can:
+- Play it in the built-in player
+- Open it in Google Chrome
+- Refresh it when it expires
+
+> Every extracted link expires after a while. When it does, refresh it or extract a new one.
 
 ## Live Cinema
 
-[**Live Cinema**](https://live-cinema.pages.dev/) is a separate free website for watching together in sync. It has no ads, admin controls, and a live chat.
+[**Live Cinema**](https://live-cinema.pages.dev/) is a separate free website for watching together. It has no ads, and it keeps everyone in sync.
 
-Capture a link in Streamo, test it in Chrome, paste it into a Live Cinema room, and share the room link.
+- Synchronized playback for all viewers
+- Admin controls for the room
+- Free live chat while you watch
+
+**Create a room in 5 steps:**
+1. Extract a working link with Streamo.
+2. Open that link in Google Chrome and make sure it plays.
+3. Go to [live-cinema.pages.dev](https://live-cinema.pages.dev/) and create a Watch Party room.
+4. Enter the movie name, description, and the direct link.
+5. Share the room link with anyone. They can join for free.
 
 ## Download
 
 <div align="center">
 
-### 🪟 Windows
+### Windows
 [**Streamo-v2.0.1-portable.exe**](https://github.com/X5Coder/Streamo/releases/download/windows-v2.0.1/Streamo-v2.0.1-portable.exe)
 <br><sub>Portable · No installation · 73 MB</sub>
 
 <br>
 
-### 🤖 Android
+### Android
 [**Streamo-v2.0.1-android.apk**](https://github.com/X5Coder/Streamo/releases/download/android-v2.0.1/Streamo-v2.0.1-android.apk)
-<br><sub>Android APK · 4.4 MB</sub>
+<br><sub>APK · 4.4 MB · Allow installs from unknown sources</sub>
 
 </div>
 
@@ -82,7 +118,7 @@ Capture a link in Streamo, test it in Chrome, paste it into a Live Cinema room, 
 
 <div align="center">
 
-<sub>Streamo does not host any content. It only captures links from websites you choose to visit. You are responsible for how you use it.</sub>
+<sub>Streamo does not host any content. It only extracts links from websites you choose to visit. You are responsible for how you use it.</sub>
 
 **Made by [X5Coder](https://github.com/X5Coder) · All rights reserved**
 
