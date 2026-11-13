@@ -9,8 +9,8 @@
 Extract the direct link of any movie or series from a watching website.
 Play it anywhere with no ads, or share it with friends on Live Cinema.
 
-[![Windows](https://img.shields.io/badge/Windows-Download-000000?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/X5Coder/Streamo/releases/download/windows-v2.0.1/Streamo-v2.0.1-portable.exe)
-[![Android](https://img.shields.io/badge/Android-Download-000000?style=for-the-badge&logo=android&logoColor=white)](https://github.com/X5Coder/Streamo/releases/download/android-v2.0.1/Streamo-v2.0.1-android.apk)
+[![Windows](https://img.shields.io/badge/Windows-Download-000000?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/X5Coder/Streamo/releases/download/windows-v2.0.1/Streamo-v2.0.1-portable.exe)&nbsp;&nbsp;&nbsp;
+[![Android](https://img.shields.io/badge/Android-Download-000000?style=for-the-badge&logo=android&logoColor=white)](https://github.com/X5Coder/Streamo/releases/download/android-v2.0.1/Streamo-v2.0.1-android.apk)&nbsp;&nbsp;&nbsp;
 [![Live Cinema](https://img.shields.io/badge/Live%20Cinema-Watch%20Together-000000?style=for-the-badge)](https://live-cinema.pages.dev/)
 
 </div>
@@ -55,7 +55,15 @@ flowchart LR
 The steps are the same on Windows and Android.
 
 **1. Search**
-Type `مشاهدة فيلم <name> اونلاين` or `مشاهدة مسلسل <name> اونلاين` in the app. You can add a website name at the end, or leave it out.
+Search in Arabic, like in these examples:
+
+| Looking for | Search like this |
+| :-- | :-- |
+| A movie | مشاهدة فيلم الفيل الأزرق اونلاين |
+| A series | مشاهدة مسلسل جعفر العمدة اونلاين |
+| A movie on one website | مشاهدة فيلم الفيل الأزرق اونلاين توب سينما |
+
+The website name at the end is optional.
 
 **2. Open a watching website**
 Choose any website from the results, such as Top Cinema, Cinema La Rosa, or any other site.
@@ -98,27 +106,9 @@ In **Extracted Links** you can:
 4. Enter the movie name, description, and the direct link.
 5. Share the room link with anyone. They can join for free.
 
-## Download
-
-<div align="center">
-
-### Windows
-[**Streamo-v2.0.1-portable.exe**](https://github.com/X5Coder/Streamo/releases/download/windows-v2.0.1/Streamo-v2.0.1-portable.exe)
-<br><sub>Portable · No installation · 73 MB</sub>
-
-<br>
-
-### Android
-[**Streamo-v2.0.1-android.apk**](https://github.com/X5Coder/Streamo/releases/download/android-v2.0.1/Streamo-v2.0.1-android.apk)
-<br><sub>APK · 4.4 MB · Allow installs from unknown sources</sub>
-
-</div>
-
 ---
 
 <div align="center">
-
-<sub>Streamo does not host any content. It only extracts links from websites you choose to visit. You are responsible for how you use it.</sub>
 
 **Made by [X5Coder](https://github.com/X5Coder) · All rights reserved**
 
