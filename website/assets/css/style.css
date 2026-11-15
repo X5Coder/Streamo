@@ -157,7 +157,6 @@ html[lang="ar"] .hero-title { letter-spacing: 0; line-height: 1.22; }
 html[lang="ar"] .hero-sub { line-height: 1.9; }
 
 .hero-ctas { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
-.hero-note { font-size: 12px; color: var(--faint); display: flex; align-items: center; gap: 8px; margin-bottom: 22px; }
 .chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .chip { font-size: 11px; font-weight: 700; letter-spacing: .06em; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; text-transform: uppercase; }
 html[lang="ar"] .chip { letter-spacing: 0; text-transform: none; }
@@ -169,17 +168,6 @@ html[lang="ar"] .chip { letter-spacing: 0; text-transform: none; }
   box-shadow: var(--shadow-lg); background: var(--dark); transform: rotate(0.001deg);
 }
 .shot img { width: 100%; height: auto; }
-.shot-float {
-  position: absolute; inset-inline-end: -14px; bottom: -22px;
-  display: flex; align-items: center; gap: 11px; background: #fff;
-  border: 1px solid var(--line); border-radius: 14px; padding: 10px 16px 10px 12px;
-  box-shadow: var(--shadow-sm); animation: floatY 5s ease-in-out infinite;
-}
-html[lang="ar"] .shot-float { padding: 10px 12px 10px 16px; }
-@keyframes floatY { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
-.shot-float .sf-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--ink); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.shot-float .sf-t { font-size: 12px; font-weight: 700; line-height: 1.35; }
-.shot-float .sf-s { font-size: 10.5px; color: var(--faint); font-weight: 500; }
 
 /* ============ شريط الثقة ============ */
 .trustbar { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: #fff; }
@@ -381,7 +369,6 @@ html[lang="ar"] .f-col a:hover { transform: translateX(-4px); }
   .lc-item:nth-last-child(-n+2) { border-bottom: 1px solid var(--line); }
   .lc-item:last-child { border-bottom: 0; }
   .dl-grid { grid-template-columns: 1fr; max-width: 480px; }
-  .shot-float { inset-inline-end: 8px; bottom: -18px; }
   .trust-item { padding: 13px 16px; font-size: 10.5px; }
 }
 @media (max-width: 560px) {
