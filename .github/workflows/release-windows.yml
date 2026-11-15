@@ -1,4 +1,4 @@
-name: Build & Sign Windows Release
+﻿name: Build & Sign Windows Release
 
 on:
   workflow_dispatch:
@@ -19,10 +19,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
@@ -46,7 +46,7 @@ jobs:
 
       - name: Upload unsigned artifact
         id: upload-unsigned-artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           path: windows/dist/Streamo-v${{ inputs.version }}-windows.exe
           archive: false
@@ -82,13 +82,13 @@ jobs:
 
           gh release view $tag --repo $repo 2>$null
           if ($LASTEXITCODE -ne 0) {
-            gh release create $tag --title "Streamo v$version — Windows" `
-              --notes "Windows x64 build — signed by SignPath Foundation (https://x5coder.github.io/Streamo/code-signing-policy.html)." \
+            gh release create $tag --title "Streamo v$version â€” Windows" `
+              --notes "Windows x64 build â€” signed by SignPath Foundation (https://x5coder.github.io/Streamo/code-signing-policy.html)." \
               --repo $repo
           }
 
           gh release delete-asset $tag "Streamo-v$version-portable.exe" --repo $repo --yes 2>$null
           gh release upload $tag $exe.FullName --repo $repo --clobber
-          gh release edit $tag --title "Streamo v$version — Windows" --repo $repo
+          gh release edit $tag --title "Streamo v$version â€” Windows" --repo $repo
 
           Write-Host "Done. Release asset: Streamo-v$version-windows.exe"
