@@ -11,11 +11,11 @@ Play it anywhere with no ads, or share it with friends on Live Cinema.
 
 <br>
 
-# 🌐 [**Visit the Project Website**](https://x5coder.github.io/Streamo/en/index.html)
+<a href="https://x5coder.github.io/Streamo/en/index.html">
+  <img src="https://img.shields.io/badge/Visit%20the%20Project%20Website-000000?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Visit the Project Website" height="56">
+</a>
 
-### 👉 [x5coder.github.io/Streamo](https://x5coder.github.io/Streamo/en/index.html) 👈
-
-<br>
+<br><br>
 
 [![Windows](https://img.shields.io/badge/Windows-Download-000000?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/X5Coder/Streamo/releases/download/windows-v2.0.1/Streamo-v2.0.1-windows.exe)&nbsp;&nbsp;&nbsp;
 [![Android](https://img.shields.io/badge/Android-Download-000000?style=for-the-badge&logo=android&logoColor=white)](https://github.com/X5Coder/Streamo/releases/download/android-v2.0.1/Streamo-v2.0.1-android.apk)&nbsp;&nbsp;&nbsp;
@@ -63,8 +63,8 @@ flowchart LR
 The steps are the same on Windows and Android.
 
 **1. Search**
-Search in Arabic using the format: "مشاهدة فيلم / مسلسل + اسم العمل + اونلاين".
-You can optionally add the website name at the end.
+Search in Arabic using this pattern: **Watch Movie / Series** + **Title** + **Online**.
+Adding the website name at the end is optional.
 
 **2. Open a watching website**
 Choose any website from the results, such as Top Cinema, Cinema La Rosa, or any other site.
