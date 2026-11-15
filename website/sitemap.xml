@@ -3,14 +3,14 @@
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://x5coder.github.io/Streamo/</loc>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://x5coder.github.io/Streamo/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://x5coder.github.io/Streamo/en/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://x5coder.github.io/Streamo/"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://x5coder.github.io/Streamo/ar/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://x5coder.github.io/Streamo/"/>
   </url>
   <url>
-    <loc>https://x5coder.github.io/Streamo/en/</loc>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://x5coder.github.io/Streamo/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://x5coder.github.io/Streamo/en/"/>
+    <loc>https://x5coder.github.io/Streamo/ar/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://x5coder.github.io/Streamo/"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://x5coder.github.io/Streamo/ar/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://x5coder.github.io/Streamo/"/>
   </url>
 </urlset>
