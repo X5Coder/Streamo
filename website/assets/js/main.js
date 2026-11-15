@@ -129,10 +129,6 @@ document.querySelectorAll('.copy-btn').forEach((btn) => {
     const fill = document.createElement('span');
     fill.className = 'btn-fill';
     fill.setAttribute('aria-hidden', 'true');
-    const pct = document.createElement('span');
-    pct.className = 'btn-pct';
-    pct.textContent = '0%';
-    label.appendChild(pct);
     a.appendChild(fill);
     a.appendChild(label);
 
@@ -143,20 +139,18 @@ document.querySelectorAll('.copy-btn').forEach((btn) => {
       a.setAttribute('aria-busy', 'true');
 
       const start = performance.now();
-      const dur = reduce ? 350 : 2300;
+      const dur = reduce ? 350 : 2100;
       function frame(now) {
         const t = Math.min((now - start) / dur, 1);
-        const eased = 1 - Math.pow(2, -8 * t); /* easeOutExpo تقريبًا */
+        const eased = 1 - Math.pow(2, -8 * t);
         const value = t >= 1 ? 100 : Math.round(Math.min(eased, 0.99) * 100);
         fill.style.width = value + '%';
-        pct.textContent = value + '%';
         if (t < 1) {
           requestAnimationFrame(frame);
           return;
         }
         /* ابدأ التحميل الفعلي */
         fill.style.width = '100%';
-        pct.textContent = '100%';
         const dl = document.createElement('a');
         dl.href = a.href;
         dl.rel = 'noopener';
@@ -167,12 +161,40 @@ document.querySelectorAll('.copy-btn').forEach((btn) => {
           a.classList.remove('is-loading');
           a.removeAttribute('aria-busy');
           fill.style.width = '0%';
-          pct.textContent = '0%';
         }, 750);
       }
       requestAnimationFrame(frame);
     });
   });
+})();
+
+/* ---------- عدّاد الأرقام في قسم لايف سينما ---------- */
+(function counters() {
+  const cells = document.querySelectorAll('.num-cell .n[data-count]');
+  if (!cells.length || !('IntersectionObserver' in window)) return;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      const el = entry.target;
+      io.unobserve(el);
+      const target = parseFloat(el.dataset.count || '0');
+      const prefix = el.dataset.prefix || '';
+      const suffix = el.dataset.suffix || '';
+      if (reduce) { el.textContent = prefix + target + suffix; return; }
+      const start = performance.now();
+      const dur = 1100;
+      function frame(now) {
+        const t = Math.min((now - start) / dur, 1);
+        const eased = 1 - Math.pow(1 - t, 3);
+        const value = Math.round(target * eased);
+        el.textContent = prefix + value + suffix;
+        if (t < 1) requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    });
+  }, { threshold: 0.6 });
+  cells.forEach((el) => io.observe(el));
 })();
 
 /* ---------- السنة الحالية في الفوتر ---------- */
