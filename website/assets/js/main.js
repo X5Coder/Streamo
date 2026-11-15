@@ -115,5 +115,65 @@ document.querySelectorAll('.copy-btn').forEach((btn) => {
   });
 })();
 
+/* ---------- أزرار التحميل: تعبئة 0 → 100 ثم يبدأ التحميل ---------- */
+(function downloadButtons() {
+  const links = document.querySelectorAll('a[href*="github.com/X5Coder/Streamo/releases/download/"]');
+  if (!links.length) return;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  links.forEach((a) => {
+    /* غلاف داخلي للنص عشان mix-blend-mode يشتغل فوق التعبئة */
+    const label = document.createElement('span');
+    label.className = 'btn-label';
+    while (a.firstChild) label.appendChild(a.firstChild);
+    const fill = document.createElement('span');
+    fill.className = 'btn-fill';
+    fill.setAttribute('aria-hidden', 'true');
+    const pct = document.createElement('span');
+    pct.className = 'btn-pct';
+    pct.textContent = '0%';
+    label.appendChild(pct);
+    a.appendChild(fill);
+    a.appendChild(label);
+
+    a.addEventListener('click', (e) => {
+      if (a.classList.contains('is-loading')) { e.preventDefault(); return; }
+      e.preventDefault();
+      a.classList.add('is-loading');
+      a.setAttribute('aria-busy', 'true');
+
+      const start = performance.now();
+      const dur = reduce ? 350 : 2300;
+      function frame(now) {
+        const t = Math.min((now - start) / dur, 1);
+        const eased = 1 - Math.pow(2, -8 * t); /* easeOutExpo تقريبًا */
+        const value = t >= 1 ? 100 : Math.round(Math.min(eased, 0.99) * 100);
+        fill.style.width = value + '%';
+        pct.textContent = value + '%';
+        if (t < 1) {
+          requestAnimationFrame(frame);
+          return;
+        }
+        /* ابدأ التحميل الفعلي */
+        fill.style.width = '100%';
+        pct.textContent = '100%';
+        const dl = document.createElement('a');
+        dl.href = a.href;
+        dl.rel = 'noopener';
+        document.body.appendChild(dl);
+        dl.click();
+        dl.remove();
+        window.setTimeout(() => {
+          a.classList.remove('is-loading');
+          a.removeAttribute('aria-busy');
+          fill.style.width = '0%';
+          pct.textContent = '0%';
+        }, 750);
+      }
+      requestAnimationFrame(frame);
+    });
+  });
+})();
+
 /* ---------- السنة الحالية في الفوتر ---------- */
 document.querySelectorAll('.js-year').forEach((el) => { el.textContent = new Date().getFullYear(); });
