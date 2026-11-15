@@ -1,4 +1,4 @@
-<div align="center">
+﻿<div align="center">
 
 <img src="logo.svg" alt="Streamo" width="140">
 
@@ -9,7 +9,7 @@
 Extract the direct link of any movie or series from a watching website.
 Play it anywhere with no ads, or share it with friends on Live Cinema.
 
-[![Windows](https://img.shields.io/badge/Windows-Download-000000?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/X5Coder/Streamo/releases/download/windows-v2.0.1/Streamo-v2.0.1-portable.exe)&nbsp;&nbsp;&nbsp;
+[![Windows](https://img.shields.io/badge/Windows-Download-000000?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/X5Coder/Streamo/releases/download/windows-v2.0.1/Streamo-v2.0.1-windows.exe)&nbsp;&nbsp;&nbsp;
 [![Android](https://img.shields.io/badge/Android-Download-000000?style=for-the-badge&logo=android&logoColor=white)](https://github.com/X5Coder/Streamo/releases/download/android-v2.0.1/Streamo-v2.0.1-android.apk)&nbsp;&nbsp;&nbsp;
 [![Live Cinema](https://img.shields.io/badge/Live%20Cinema-Watch%20Together-000000?style=for-the-badge)](https://live-cinema.pages.dev/)
 
@@ -105,6 +105,12 @@ In **Extracted Links** you can:
 3. Go to [live-cinema.pages.dev](https://live-cinema.pages.dev/) and create a Watch Party room.
 4. Enter the movie name, description, and the direct link.
 5. Share the room link with anyone. They can join for free.
+
+## Open Source & Code Signing
+
+Streamo is open source under the [MIT License](LICENSE).
+
+Windows builds are signed with a certificate provided by [SignPath.io](https://signpath.io) — **Free code signing provided by SignPath.io, certificate by SignPath Foundation.** Every release is built automatically from this repository by GitHub Actions and each signing request is approved manually by the maintainer. See the [Code Signing Policy](https://x5coder.github.io/Streamo/code-signing-policy.html) for details (team: X5Coder).
 
 ---
 

@@ -1,0 +1,94 @@
+name: Build & Sign Windows Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (without v prefix), e.g. 2.0.1'
+        required: true
+        default: '2.0.1'
+
+# The release tag is windows-v<version> (e.g. windows-v2.0.1).
+# The final signed asset is Streamo-v<version>-windows.exe.
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  build-sign-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: windows/package-lock.json
+
+      - name: Verify version matches input
+        shell: pwsh
+        run: |
+          $pkg = Get-Content windows/package.json -Raw | ConvertFrom-Json
+          if ($pkg.version -ne "${{ inputs.version }}") {
+            throw "windows/package.json version ($($pkg.version)) does not match input version (${{ inputs.version }})"
+          }
+
+      - name: Install dependencies
+        working-directory: windows
+        run: npm ci
+
+      - name: Build portable exe (unsigned)
+        working-directory: windows
+        run: npm run dist
+
+      - name: Upload unsigned artifact
+        id: upload-unsigned-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          path: windows/dist/Streamo-v${{ inputs.version }}-windows.exe
+          archive: false
+
+      - name: Submit signing request to SignPath
+        id: sign
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ vars.SIGNPATH_ORGANIZATION_ID }}'
+          project-slug: '${{ vars.SIGNPATH_PROJECT_SLUG }}'
+          signing-policy-slug: '${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}'
+          github-artifact-id: '${{ steps.upload-unsigned-artifact.outputs.artifact-id }}'
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: '3600'
+          output-artifact-directory: 'windows/signed'
+          skip-decompress: true
+          parameters: |
+            version: "${{ inputs.version }}"
+
+      - name: Replace release asset with the signed build
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $repo = "${{ github.repository }}"
+          $tag = "windows-v${{ inputs.version }}"
+          $version = "${{ inputs.version }}"
+
+          $exe = Get-ChildItem -Path "windows/signed" -Filter "Streamo-v$version-windows.exe" -Recurse |
+                 Select-Object -First 1
+          if (-not $exe) { throw "Signed artifact not found in windows/signed" }
+
+          gh release view $tag --repo $repo 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --title "Streamo v$version — Windows" `
+              --notes "Windows x64 build — signed by SignPath Foundation (https://x5coder.github.io/Streamo/code-signing-policy.html)." \
+              --repo $repo
+          }
+
+          gh release delete-asset $tag "Streamo-v$version-portable.exe" --repo $repo --yes 2>$null
+          gh release upload $tag $exe.FullName --repo $repo --clobber
+          gh release edit $tag --title "Streamo v$version — Windows" --repo $repo
+
+          Write-Host "Done. Release asset: Streamo-v$version-windows.exe"
