@@ -60,7 +60,7 @@ html[lang="ar"] :focus-visible { outline-offset: 3px; }
 .container { width: calc(100% - 40px); max-width: 1160px; margin-inline: auto; }
 
 /* منع تجاوز المحتوى الأفقي داخل الشبكات والفليكس */
-.hero-grid > *, .features-grid > *, .steps-grid > *, .result-panel > *,
+.hero-stack > *, .features-grid > *, .steps-grid > *, .result-panel > *,
 .lc-grid > *, .lc-numbers > *, .lc-features > *, .dl-grid > *,
 .table-wrap, .panel, .card, .step, .dl-card,
 .lc-item, .num-cell, .dl-file, .footer-top > * { min-width: 0; }
@@ -143,8 +143,11 @@ html[lang="ar"] .arr { transform: scaleX(-1); }
 html[lang="ar"] .btn:hover .arr { transform: scaleX(-1) translateX(5px); }
 
 /* ============ HERO ============ */
-.hero { padding: 54px 0 60px; position: relative; overflow: hidden; }
-.hero-grid { display: grid; grid-template-columns: 1.02fr .98fr; gap: 52px; align-items: center; }
+.hero { padding: 48px 0 64px; position: relative; overflow: hidden; }
+.hero-stack { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 40px; }
+.hero-copy { display: flex; flex-direction: column; align-items: center; }
+.hero-ctas { display: flex; justify-content: center; gap: 12px; }
+.chips { justify-content: center; }
 
 .badge {
   display: inline-flex; align-items: center; gap: 9px; font-size: 11.5px; font-weight: 700;
@@ -157,7 +160,7 @@ html[lang="ar"] .badge { letter-spacing: .02em; text-transform: none; }
 @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(.55); opacity: .45; } }
 
 .hero-title {
-  font-size: clamp(2.5rem, 5.6vw, 3.9rem); font-weight: 800; line-height: 1.06;
+  font-size: clamp(2.6rem, 6vw, 4.4rem); font-weight: 800; line-height: 1.06;
   letter-spacing: -.032em; color: var(--ink); margin-bottom: 20px; text-wrap: balance;
 }
 html[lang="ar"] .hero-title { letter-spacing: 0; line-height: 1.22; }
@@ -172,6 +175,7 @@ html[lang="ar"] .hero-sub { line-height: 1.9; }
 html[lang="ar"] .chip { letter-spacing: 0; text-transform: none; }
 
 /* — لقطة الشاشة بتأثير نافذة — */
+.hero-stack .shot-wrap { width: 100%; max-width: 1120px; }
 .shot-wrap { position: relative; }
 .shot-wrap::before {
   content: ''; position: absolute; inset: -14% -12%; z-index: -1; pointer-events: none;
@@ -358,7 +362,8 @@ html[lang="ar"] .f-col a:hover { transform: translateX(-4px); }
   .hamburger { display: flex; }
   .btn-header { display: none; }
   .hero { padding: 36px 0 46px; }
-  .hero-grid { grid-template-columns: 1fr; gap: 40px; }
+  .hero-stack { gap: 30px; }
+  .hero-copy { width: 100%; }
   .hero-sub { font-size: 16px; }
   .result-panel { grid-template-columns: 1fr; }
   .lc-grid { grid-template-columns: 1fr; gap: 26px; }
