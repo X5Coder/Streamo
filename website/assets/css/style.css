@@ -229,6 +229,48 @@ html[lang="ar"] .h2 { letter-spacing: 0; line-height: 1.35; }
 .lead { font-size: 16.5px; color: var(--muted); line-height: 1.8; max-width: 66ch; }
 html[lang="ar"] .lead { line-height: 1.95; }
 
+/* ============ قسم فيديو الشرح / Tutorial ============ */
+.tutorial { background: var(--dark); padding: 80px 0; position: relative; overflow: hidden; }
+.tutorial::before {
+  content: ''; position: absolute; inset: -20% -15%; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 15%, rgba(147, 51, 234, .28), transparent 55%);
+}
+.tutorial .container { position: relative; }
+.tutorial-head { text-align: center; max-width: 760px; margin: 0 auto 30px; }
+.tutorial-head .eyebrow { justify-content: center; color: #7d7d7d; }
+.tutorial-head .eyebrow::before { background: #fff; }
+.tutorial-title { color: #fff; font-size: clamp(1.75rem, 3.8vw, 2.7rem); font-weight: 800; line-height: 1.16; letter-spacing: -.025em; margin-bottom: 14px; text-wrap: balance; }
+html[lang="ar"] .tutorial-title { letter-spacing: 0; line-height: 1.32; }
+.tutorial-sub { color: #a8a8a8; font-size: 15px; line-height: 1.85; max-width: 58ch; margin-inline: auto; }
+.tutorial-sub b { color: #fff; }
+.tutorial-card {
+  display: block; position: relative; border-radius: var(--radius); overflow: hidden;
+  border: 1px solid #26262a; box-shadow: 0 0 0 5px #141414, 0 0 110px rgba(147, 51, 234, .32), 0 30px 70px rgba(0, 0, 0, .55);
+  transition: transform .45s var(--ease), box-shadow .45s var(--ease); max-width: 980px; margin-inline: auto;
+}
+.tutorial-card:hover { transform: translateY(-6px); box-shadow: 0 0 0 5px #141414, 0 0 150px rgba(147, 51, 234, .42), 0 40px 90px rgba(0, 0, 0, .6); }
+.tutorial-card img { width: 100%; height: auto; aspect-ratio: 1672 / 941; object-fit: cover; }
+.tutorial-play {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 45%, rgba(0,0,0,.45) 100%); transition: background .4s;
+}
+.tutorial-play-inner {
+  width: 84px; height: 84px; border-radius: 50%; background: rgba(8, 8, 10, .55);
+  border: 1px solid rgba(255, 255, 255, .4); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center; transition: transform .4s var(--ease), background .4s, border-color .4s;
+  animation: playPulse 2.6s ease-in-out infinite;
+}
+@keyframes playPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(167, 139, 250, .45); } 55% { box-shadow: 0 0 0 18px rgba(147, 51, 234, 0); } }
+.tutorial-card:hover .tutorial-play-inner { transform: scale(1.14); background: rgba(8, 8, 10, .75); border-color: #fff; }
+.tutorial-yt {
+  position: absolute; top: 16px; inset-inline-start: 16px; display: inline-flex; align-items: center; gap: 8px;
+  font-size: 11.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #fff;
+  background: rgba(8, 8, 10, .55); border: 1px solid rgba(255,255,255,.3); border-radius: 8px;
+  padding: 8px 13px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+html[lang="ar"] .tutorial-yt { letter-spacing: .04em; }
+.tutorial-cta { display: flex; justify-content: center; margin-top: 28px; }
+
 /* ============ المميزات / Features ============ */
 .features-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 .card {
