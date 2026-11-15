@@ -1,4 +1,4 @@
-<div align="center">
+﻿<div align="center">
 
 <img src="logo.svg" alt="Streamo" width="140">
 
@@ -13,7 +13,7 @@ Play it anywhere with no ads, or share it with friends on Live Cinema.
 
 <br>
 
-<a href="https://x5coder.github.io/Streamo/en/index.html">
+<a href="https://x5coder.github.io/Streamo/">
   <img src="https://img.shields.io/badge/Visit%20the%20Project%20Website-000000?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Visit the Project Website" height="56">
 </a>
 
