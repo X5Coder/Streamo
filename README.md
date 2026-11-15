@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 <img src="logo.svg" alt="Streamo" width="140">
 
@@ -22,6 +22,30 @@ Play it anywhere with no ads, or share it with friends on Live Cinema.
 [![Windows](https://img.shields.io/badge/Windows-Download-000000?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/X5Coder/Streamo/releases/download/windows-v2.0.1/Streamo-v2.0.1-windows.exe)&nbsp;&nbsp;&nbsp;
 [![Android](https://img.shields.io/badge/Android-Download-000000?style=for-the-badge&logo=android&logoColor=white)](https://github.com/X5Coder/Streamo/releases/download/android-v2.0.1/Streamo-v2.0.1-android.apk)&nbsp;&nbsp;&nbsp;
 [![Live Cinema](https://img.shields.io/badge/Live%20Cinema-Watch%20Together-000000?style=for-the-badge)](https://live-cinema.pages.dev/)
+
+<br><br>
+
+<a href="https://youtu.be/JN3SE1wG15U">
+  <img src="https://img.shields.io/badge/Watch%20the%20Tutorial-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch the Tutorial" height="56">
+</a>
+
+</div>
+
+---
+
+## Video Tutorial
+
+New to Streamo? Watch the full walkthrough, from searching for a movie to sharing it on Live Cinema.
+
+<div align="center">
+
+<a href="https://youtu.be/JN3SE1wG15U">
+  <img src="https://img.youtube.com/vi/JN3SE1wG15U/maxresdefault.jpg" alt="Streamo Tutorial Video" width="640">
+</a>
+
+<br>
+
+▶️ **[Watch on YouTube](https://youtu.be/JN3SE1wG15U)**
 
 </div>
 
@@ -61,6 +85,8 @@ flowchart LR
 ```
 
 ## Quick Start
+
+> 🎬 Prefer watching? Follow along with the [video tutorial](https://youtu.be/JN3SE1wG15U).
 
 The steps are the same on Windows and Android.
 
