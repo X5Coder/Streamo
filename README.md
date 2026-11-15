@@ -4,6 +4,8 @@
 
 # Streamo
 
+![Version](https://img.shields.io/badge/version-v2.0.1-000000?style=flat-square)
+
 **Steal the stream. Skip the ads.**
 
 Extract the direct link of any movie or series from a watching website.
