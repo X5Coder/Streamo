@@ -1,7 +1,7 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <!--
-  Streamo â€” Browser window (Windows).
-  Opens straight to Google. Compact dark toolbar: back/forward Â· tabs Â· history Â· [URL pill] Â· search Â· links.
+  Streamo — Browser window (Windows).
+  Opens straight to Google. Compact dark toolbar: back/forward · tabs · history · [URL pill] · search · links.
   All English UI. Streamo is an open-source project developed by Kimo.
 -->
 <html lang="en" dir="ltr">
@@ -159,11 +159,11 @@
     to { opacity: 0; transform: translateY(-6px); }
   }
 
-  /* ============ Body (ÙÙ„ÙŠÙƒØ³ â€” Ø§Ù„ØªÙˆØ¨ÙŠØ±Ù„Ø¨Ø§Ø± ÙÙˆÙ‚ Ø¯Ø§Ø¦Ù…Ù‹Ø§ Ù…Ø´ Ø¨Ø«ÙˆØ§Ø¨Øª) ============ */
+  /* ============ Body (فليكس — التوبيرلبار فوق دائمًا مش بثوابت) ============ */
   #body { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; background: #000000; }
   #views { position: absolute; inset: 0; }
   webview.tab-view { position: absolute; inset: 0; width: 100%; height: 100%; border: none; background: #000000; }
-  /* ============ Badge (Ø¹Ø¯Ù‘Ø§Ø¯ Ø§Ù„Ø±ÙˆØ§Ø¨Ø·) ============ */
+  /* ============ Badge (عدّاد الروابط) ============ */
   .badge {
     position: absolute; top: -3px; right: -3px;
     min-width: 17px; height: 17px; padding: 0 4px;
@@ -195,7 +195,7 @@
   }
   #panelRight { right: 0; transform: translateX(105%); border-left: 1px solid var(--border); }
   #panelRight.open { transform: translateX(0); }
-  /* Records + Tabs panels: fade in / fade out only â€” no side slide */
+  /* Records + Tabs panels: fade in / fade out only — no side slide */
   #panelLeft { left: 0; border-right: 1px solid var(--border); }
   #panelTabs { left: 0; border-right: 1px solid var(--border); }
   #panelLeft, #panelTabs {
@@ -219,7 +219,7 @@
   }
   #toast.show { opacity: 1; transform: translate(-50%, 0); }
 
-  /* ============ Streamo Player â€” Ø§Ø­ØªØ±Ø§ÙÙŠ (Ø¨Ù„Ø§ Ø´Ø§Øª) ============ */
+  /* ============ Streamo Player — احترافي (بلا شات) ============ */
   /* ============ Streamo Player - keep controls visible in error/loading states ============ */
   #player.error .player-top, #player.loading .player-top {
     transform: none !important;
@@ -334,14 +334,14 @@
     100% { opacity: 0; transform: scale(1.28); }
   }
 
-  /* ====== Controls â€” Ø§Ù„Ø´Ø±ÙŠØ· Ø§Ù„Ø³ÙÙ„ÙŠ Ø§Ù„ÙˆØ§Ø­Ø¯: Ø´Ø±ÙŠØ· Ø§Ù„ØªÙ‚Ø¯Ù… ÙÙˆÙ‚ + Ø§Ù„Ø¹Ù…ÙˆØ¯ ÙƒÙ„Ù‡Ø§ ØªØ­Øª ====== */
+  /* ====== Controls — الشريط السفلي الواحد: شريط التقدم فوق + العمود كلها تحت ====== */
   .player-bottom {
     position: absolute; z-index: 5; left: 16px; right: 16px; bottom: 14px;
     display: flex; flex-direction: column; gap: 6px;
     transition: transform 0.28s cubic-bezier(.3,.9,.3,1), opacity 0.28s ease;
   }
 
-  /* ====== Custom seek bar â€” drag & hover preview ====== */
+  /* ====== Custom seek bar — drag & hover preview ====== */
   .progress {
     position: relative; align-self: stretch; z-index: 0;
     height: 22px; display: flex; align-items: center; cursor: pointer; touch-action: none;
@@ -374,7 +374,7 @@
   }
   .progress:hover .progress-tooltip, .progress.dragging .progress-tooltip { display: block; }
 
-  /* ====== Single pill bar â€” ÙƒÙ„ Ø§Ù„Ø£Ø¯ÙˆØ§Øª ÙÙŠ Ù‚Ø·Ø¹Ø© ÙˆØ§Ø­Ø¯Ø© ====== */
+  /* ====== Single pill bar — كل الأدوات في قطعة واحدة ====== */
   .ctrl-bar {
     align-self: flex-end;
     display: flex; align-items: center; gap: 4px;
@@ -479,7 +479,7 @@
 <body>
 
 <div id="toolbar">
-  <!-- Normal mode â€” menu on the far left, links on the far right -->
+  <!-- Normal mode — menu on the far left, links on the far right -->
   <div class="bar" id="normalBar">
     <button class="tbtn" id="btnMenu" title="Menu" aria-label="Menu">
       <svg viewBox="0 0 24 24" width="19" height="19"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h10"/></svg>
@@ -495,7 +495,7 @@
       </button>
     </div>
 
-    <div class="url-pill" id="urlPill" title="Current page â€” click to search">
+    <div class="url-pill" id="urlPill" title="Current page — click to search">
       <button class="pill-nav" id="btnBack" title="Back" aria-label="Back">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#C9CDD3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
       </button>
@@ -506,8 +506,8 @@
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#C9CDD3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
       </button>
       <span id="urlText" dir="ltr">google.com</span>
-      <input id="urlInput" type="text" dir="ltr" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="Type a URL or search and press Enterâ€¦" aria-label="Edit address">
-      <button class="pill-nav" id="urlHome" title="Home â€” Google" aria-label="Home">
+      <input id="urlInput" type="text" dir="ltr" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="Type a URL or search and press Enter…" aria-label="Edit address">
+      <button class="pill-nav" id="urlHome" title="Home — Google" aria-label="Home">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#C9CDD3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M6 10.5V20h12v-9.5"/></svg>
       </button>
       <div class="pill-progress" id="pillProgress"><div class="pill-progress-bar" id="pillProgressBar"></div></div>
@@ -519,7 +519,7 @@
     </button>
   </div>
 
-  <!-- Search mode (RTL â€” English input) -->
+  <!-- Search mode (RTL — English input) -->
   <div class="bar" id="searchBar" dir="rtl" style="display:none">
     <button class="tbtn" id="btnSearchBack" title="Back" aria-label="Back">
       <svg viewBox="0 0 24 24" width="19" height="19"><path d="M15 18l-6-6 6-6"/></svg>
@@ -541,7 +541,7 @@
   <div class="notif-stack" id="notifStack"></div>
 
   <div id="scrim"></div>
-  <!-- Click-catcher for the menu popover â€” closes it with animation on outside click -->
+  <!-- Click-catcher for the menu popover — closes it with animation on outside click -->
   <div id="menuScrim"></div>
 
   <!-- Extracted Links panel -->
@@ -553,7 +553,7 @@
           <h2 class="panel-title">Extracted Links</h2>
         </div>
         <div class="panel-count" id="linksCount">0</div>
-        <button class="panel-close" id="closeLinks" aria-label="Close">âœ•</button>
+        <button class="panel-close" id="closeLinks" aria-label="Close">✕</button>
       </div>
       <div class="panel-actions-top">
         <button class="clear-all" id="clearLinksBtn">Clear all</button>
@@ -589,7 +589,7 @@
           <h2 class="panel-title">Search History</h2>
         </div>
         <div class="panel-count" id="searchCount">0</div>
-        <button class="panel-close" id="closeSearch" aria-label="Close">âœ•</button>
+        <button class="panel-close" id="closeSearch" aria-label="Close">✕</button>
       </div>
       <div class="panel-actions-top">
         <button class="clear-all" id="clearSearchBtn">Clear all</button>
@@ -625,7 +625,7 @@
           <h2 class="panel-title">Tabs</h2>
         </div>
         <div class="panel-count" id="tabsCount">0</div>
-        <button class="panel-close" id="closeTabs" aria-label="Close">âœ•</button>
+        <button class="panel-close" id="closeTabs" aria-label="Close">✕</button>
       </div>
       <div class="panel-actions-top">
         <button class="action-btn" id="newTabBtn" style="flex:1;background:#FFFFFF;color:#000000;border-color:#FFFFFF;font-weight:700">+ New Tab</button>
@@ -643,7 +643,7 @@
 
   <div id="toast"></div>
 
-  <!-- ============ Streamo Player â€” Ø§Ø­ØªØ±Ø§ÙÙŠ (Ø¨Ù„Ø§ Ø´Ø§Øª) ============ -->
+  <!-- ============ Streamo Player — احترافي (بلا شات) ============ -->
   <div id="player" aria-hidden="true">
     <div id="playerStage">
       <video id="playerVideo" playsinline></video>
