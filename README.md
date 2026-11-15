@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 <img src="logo.svg" alt="Streamo" width="140">
 
@@ -8,6 +8,14 @@
 
 Extract the direct link of any movie or series from a watching website.
 Play it anywhere with no ads, or share it with friends on Live Cinema.
+
+<br>
+
+# 🌐 [**Visit the Project Website**](https://x5coder.github.io/Streamo/en/index.html)
+
+### 👉 [x5coder.github.io/Streamo](https://x5coder.github.io/Streamo/en/index.html) 👈
+
+<br>
 
 [![Windows](https://img.shields.io/badge/Windows-Download-000000?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/X5Coder/Streamo/releases/download/windows-v2.0.1/Streamo-v2.0.1-windows.exe)&nbsp;&nbsp;&nbsp;
 [![Android](https://img.shields.io/badge/Android-Download-000000?style=for-the-badge&logo=android&logoColor=white)](https://github.com/X5Coder/Streamo/releases/download/android-v2.0.1/Streamo-v2.0.1-android.apk)&nbsp;&nbsp;&nbsp;
@@ -55,15 +63,8 @@ flowchart LR
 The steps are the same on Windows and Android.
 
 **1. Search**
-Search in Arabic, like in these examples:
-
-| Looking for | Search like this |
-| :-- | :-- |
-| A movie | مشاهدة فيلم الفيل الأزرق اونلاين |
-| A series | مشاهدة مسلسل جعفر العمدة اونلاين |
-| A movie on one website | مشاهدة فيلم الفيل الأزرق اونلاين توب سينما |
-
-The website name at the end is optional.
+Search in Arabic using the format: "مشاهدة فيلم / مسلسل + اسم العمل + اونلاين".
+You can optionally add the website name at the end.
 
 **2. Open a watching website**
 Choose any website from the results, such as Top Cinema, Cinema La Rosa, or any other site.
