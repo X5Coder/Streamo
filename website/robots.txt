@@ -1,4 +1,4 @@
-User-agent: *
+﻿User-agent: *
 Allow: /
 
-Sitemap: https://x5coder.github.io/streamo-website/sitemap.xml
+Sitemap: https://x5coder.github.io/Streamo/sitemap.xml

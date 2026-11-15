@@ -1,4 +1,4 @@
-<div align="center">
+﻿<div align="center">
 
 <img src="assets/img/logo.svg" alt="Streamo" width="120">
 
@@ -13,7 +13,7 @@ Play it anywhere with no ads, or share it with friends on [Live Cinema](https://
 [![Android](https://img.shields.io/badge/Android-Download-000?style=for-the-badge&logo=android&logoColor=white)](https://github.com/X5Coder/Streamo/releases/download/android-v2.0.1/Streamo-v2.0.1-android.apk)
 [![Live Cinema](https://img.shields.io/badge/Live%20Cinema-Watch%20Together-000?style=for-the-badge)](https://live-cinema.pages.dev/)
 
-**Live site:** https://x5coder.github.io/streamo-website/ · [العربية](https://x5coder.github.io/streamo-website/)
+**Live site:** https://x5coder.github.io/Streamo/ · [العربية](https://x5coder.github.io/Streamo/)
 
 </div>
 
