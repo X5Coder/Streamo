@@ -31,21 +31,11 @@ Windows builds are signed by [SignPath.io](https://signpath.io) with a certifica
 2. Run the workflow **Build & Sign Windows Release** (Actions → workflow dispatch) with `version: 2.0.1`.
 3. GitHub Actions builds the exe, submits a signing request to SignPath.
 4. **Approve the request** in the SignPath dashboard (you get notified).
-5. The workflow downloads the signed exe, replaces the old `Streamo-v<version>-portable.exe` asset with `Streamo-v<version>-windows.exe`, and sets the release title to `Streamo v<version> — Windows`.
+5. The workflow downloads the signed exe, deletes any old `Streamo-v<version>-portable.exe` / `Streamo-v<version>-windows.exe` assets, uploads the signed `Streamo.exe`, and sets the release title to `Streamo v<version> — Windows`.
 
-### First-time migration of the existing 2.0.1 release
-
-The current `windows-v2.0.1` release still contains the unsigned `Streamo-v2.0.1-portable.exe`.
-After the setup above is complete, run the workflow once with `version: 2.0.1`.
-It will build from source, get your approval in SignPath, then automatically:
-
-- delete `Streamo-v2.0.1-portable.exe` from the release,
-- upload the signed `Streamo-v2.0.1-windows.exe`,
-- set the release title to `Streamo v2.0.1 — Windows`.
-
-Download links in README/website already point to `Streamo-v2.0.1-windows.exe`.
+Download links in README/website point to `Streamo.exe`.
 
 ## Android
 
 Android releases are signed with the project keystore (kept out of the repo, see `android/.gitignore`).
-Keep the asset name `Streamo-v<version>-android.apk` and the release title `Streamo v<version> — Android`.
+Keep the asset name `Streamo.apk` (plain name, no version) and the release title `Streamo v<version> — Android`.

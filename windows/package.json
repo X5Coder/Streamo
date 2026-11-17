@@ -33,11 +33,11 @@
     "win": {
       "target": "portable",
       "icon": "assets/app_icon.ico",
-      "artifactName": "Streamo-v${version}-windows.exe",
+      "artifactName": "Streamo.exe",
       "requestedExecutionLevel": "asInvoker"
     },
     "portable": {
-      "artifactName": "Streamo-v${version}-windows.exe"
+      "artifactName": "Streamo.exe"
     }
   },
   "devDependencies": {

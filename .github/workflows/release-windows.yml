@@ -9,7 +9,7 @@ on:
         default: '2.0.1'
 
 # The release tag is windows-v<version> (e.g. windows-v2.0.1).
-# The final signed asset is Streamo-v<version>-windows.exe.
+# The final signed asset is Streamo.exe.
 permissions:
   actions: read
   contents: write
@@ -48,7 +48,7 @@ jobs:
         id: upload-unsigned-artifact
         uses: actions/upload-artifact@v7
         with:
-          path: windows/dist/Streamo-v${{ inputs.version }}-windows.exe
+          path: windows/dist/Streamo.exe
           archive: false
 
       - name: Submit signing request to SignPath
@@ -76,7 +76,7 @@ jobs:
           $tag = "windows-v${{ inputs.version }}"
           $version = "${{ inputs.version }}"
 
-          $exe = Get-ChildItem -Path "windows/signed" -Filter "Streamo-v$version-windows.exe" -Recurse |
+          $exe = Get-ChildItem -Path "windows/signed" -Filter "Streamo.exe" -Recurse |
                  Select-Object -First 1
           if (-not $exe) { throw "Signed artifact not found in windows/signed" }
 
@@ -88,7 +88,8 @@ jobs:
           }
 
           gh release delete-asset $tag "Streamo-v$version-portable.exe" --repo $repo --yes 2>$null
+          gh release delete-asset $tag "Streamo-v$version-windows.exe" --repo $repo --yes 2>$null
           gh release upload $tag $exe.FullName --repo $repo --clobber
           gh release edit $tag --title "Streamo v$version â€” Windows" --repo $repo
 
-          Write-Host "Done. Release asset: Streamo-v$version-windows.exe"
+          Write-Host "Done. Release asset: Streamo.exe"
